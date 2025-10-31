@@ -252,13 +252,19 @@ class AlertManager:
     
     def _calculate_position_concentration(self, position: Dict[str, Any], 
                                         all_positions: Dict[str, Any]) -> float:
-        """Calculate position concentration in portfolio."""
-        total_notional = sum(pos.get('notional_usd', 0) for pos in all_positions.values())
-        if total_notional <= 0:
+        """Calculate position concentration in portfolio using dynamic margin/balance-based calculation."""
+        total_margin = sum(pos.get('margin_usd', 0) for pos in all_positions.values())
+        total_balance = 200.0  # Initial balance
+        current_available_balance = total_balance - total_margin
+        
+        # Dynamic total balance = available balance + used margin
+        dynamic_total_balance = current_available_balance + total_margin
+        
+        if dynamic_total_balance <= 0:
             return 0.0
         
-        position_notional = position.get('notional_usd', 0)
-        return position_notional / total_notional
+        position_margin = position.get('margin_usd', 0)
+        return position_margin / dynamic_total_balance
     
     def get_recent_alerts(self, limit: int = 10, alert_type: Optional[AlertType] = None) -> List[Alert]:
         """Get recent alerts, optionally filtered by type."""
