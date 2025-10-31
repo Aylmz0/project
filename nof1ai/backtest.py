@@ -354,11 +354,13 @@ class AdvancedRiskManager:
         if position_value > max_position_value:
             confidence_adjusted_size = max_position_value / entry_price
         
-        # Apply $50 maximum margin limit
+        # Apply dynamic 25% maximum margin limit
+        max_margin_usd = current_balance * 0.25  # 25% of current balance
         margin_required = (confidence_adjusted_size * entry_price) / 8  # Assume 8x leverage
-        if margin_required > self.max_position_size_usd:
-            # Scale down to maximum $50 margin
-            max_quantity = (self.max_position_size_usd * 8) / entry_price
+        
+        if margin_required > max_margin_usd:
+            # Scale down to maximum 25% margin
+            max_quantity = (max_margin_usd * 8) / entry_price
             confidence_adjusted_size = max_quantity
         
         return max(0.0, confidence_adjusted_size)
@@ -440,7 +442,7 @@ class AdvancedRiskManager:
         return portfolio_risk
     
     def should_enter_trade(self, symbol: str, current_positions: Dict, current_prices: Dict, 
-                          confidence: float, proposed_notional: float) -> Dict[str, Any]:
+                          confidence: float, proposed_notional: float, current_balance: float = 200.0) -> Dict[str, Any]:
         """Determine if a trade should be entered based on risk parameters."""
         decision = {
             'should_enter': True,
@@ -459,6 +461,15 @@ class AdvancedRiskManager:
         if current_risk > self.max_portfolio_risk:
             decision['should_enter'] = False
             decision['reason'] = f'Portfolio risk limit exceeded: {current_risk:.2%}'
+            return decision
+        
+        # Check 25% concentration limit for new position
+        max_margin_usd = current_balance * 0.25  # 25% of current balance
+        proposed_margin = proposed_notional / 8  # Assume 8x leverage
+        
+        if proposed_margin > max_margin_usd:
+            decision['should_enter'] = False
+            decision['reason'] = f'Position exceeds 25% concentration limit: ${proposed_margin:.2f} > ${max_margin_usd:.2f}'
             return decision
         
         # Adjust position size based on confidence
