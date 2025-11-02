@@ -442,7 +442,8 @@ class AdvancedRiskManager:
         return portfolio_risk
     
     def should_enter_trade(self, symbol: str, current_positions: Dict, current_prices: Dict, 
-                          confidence: float, proposed_notional: float, current_balance: float = 200.0) -> Dict[str, Any]:
+                          confidence: float, proposed_notional: float, current_balance: float = 200.0, 
+                          ai_risk_usd: float = None, dynamic_risk_limit: float = None) -> Dict[str, Any]:
         """Determine if a trade should be entered based on risk parameters."""
         decision = {
             'should_enter': True,
@@ -463,14 +464,33 @@ class AdvancedRiskManager:
             decision['reason'] = f'Portfolio risk limit exceeded: {current_risk:.2%}'
             return decision
         
-        # Check 25% concentration limit for new position
-        max_margin_usd = current_balance * 0.25  # 25% of current balance
-        proposed_margin = proposed_notional / 8  # Assume 8x leverage
+        # **NEW: Use dynamic risk limit if provided, otherwise use 25% of current balance**
+        if dynamic_risk_limit is not None:
+            max_margin_usd = dynamic_risk_limit
+            decision['reason'] = f'Using dynamic risk limit: ${dynamic_risk_limit:.2f}'
+        else:
+            max_margin_usd = current_balance * 0.25  # 25% of current balance (fallback)
+            decision['reason'] = f'Using fallback 25% limit: ${max_margin_usd:.2f}'
+        
+        # **FIXED: AI's quantity_usd is already the margin amount, not notional**
+        # proposed_notional = quantity_usd × leverage (calculated in PortfolioManager)
+        # So we should use quantity_usd directly as margin
+        proposed_margin = proposed_notional / 10  # Since AI uses 10x leverage typically
         
         if proposed_margin > max_margin_usd:
             decision['should_enter'] = False
-            decision['reason'] = f'Position exceeds 25% concentration limit: ${proposed_margin:.2f} > ${max_margin_usd:.2f}'
+            decision['reason'] = f'Position exceeds risk limit: ${proposed_margin:.2f} > ${max_margin_usd:.2f}'
             return decision
+        
+        # **NEW: Check AI's risk_usd value if provided**
+        if ai_risk_usd is not None:
+            # Use AI's risk_usd value directly for risk limit check
+            if ai_risk_usd > max_margin_usd:
+                decision['should_enter'] = False
+                decision['reason'] = f'AI risk exceeds dynamic limit: ${ai_risk_usd:.2f} > ${max_margin_usd:.2f}'
+                return decision
+            # If AI's risk is within limits, accept it
+            decision['reason'] = f'AI risk ${ai_risk_usd:.2f} within dynamic limit ${max_margin_usd:.2f}'
         
         # Adjust position size based on confidence
         if confidence < 0.3:

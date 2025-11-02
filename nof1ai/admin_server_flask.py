@@ -73,6 +73,32 @@ def get_alerts():
     data = safe_file_read('alerts.json', [])
     return jsonify(data)
 
+@app.route('/api/performance')
+def get_performance():
+    """Get performance analysis report."""
+    data = safe_file_read('performance_report.json', {})
+    return jsonify(data)
+
+@app.route('/api/performance/refresh', methods=['POST'])
+def refresh_performance():
+    """Trigger a new performance analysis."""
+    try:
+        # Import and run performance monitor
+        from performance_monitor import PerformanceMonitor
+        
+        monitor = PerformanceMonitor()
+        report = monitor.analyze_performance(last_n_cycles=10)
+        
+        return jsonify({
+            "status": "success",
+            "message": "Performance analysis completed",
+            "report": report
+        })
+        
+    except Exception as e:
+        logger.error(f"Error refreshing performance: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route('/api/force-close', methods=['POST'])
 def force_close_position():
     """Force close a specific position."""

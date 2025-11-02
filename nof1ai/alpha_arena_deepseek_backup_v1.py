@@ -92,8 +92,14 @@ ADVANCED TRADING STRATEGY:
 - **Be proactive with position management, not just reactive**
 - **TAKE MORE RISKS: Enter positions even with lower volume if technical setup is strong**
 - **CONSIDER COUNTER-TREND SETUPS: Don't be afraid to go against 4h trend if 3m momentum is strong**
-- **Focus on high volume coins - JASMY has excellent volume and volatility for trading opportunities**
-- **BE AGGRESSIVE but disciplined - Take calculated risks based on technical analysis**
+
+TREND-BASED TRADING RULES (CRITICAL):
+- **YOU CAN ENTER LONG POSITIONS AT ANY TIME - NO TREND RESTRICTIONS**
+- **YOU CAN ENTER SHORT POSITIONS AT ANY TIME - NO TREND RESTRICTIONS**
+- **IGNORE VOLUME THRESHOLDS - trade even with low volume if setup is strong**
+- **FOCUS ON TECHNICAL SETUPS: RSI, MACD, price action, momentum**
+- **DÜŞÜK VOLUME'LU COİN'LERİ DE ALABİLİRSİN (ASTR, SOL gibi)**
+- **BE AGGRESSIVE: Take calculated risks and enter positions more frequently**
 
 IMPORTANT STARTUP BEHAVIOR:
 - On first cycle (Cycle 1), observe market conditions for at least 2-3 cycles before entering positions
@@ -260,7 +266,7 @@ class RealMarketData:
     def __init__(self):
         self.spot_url = "https://api.binance.com/api/v3"
         self.futures_url = "https://fapi.binance.com/fapi/v1"
-        self.available_coins = ['XRP', 'DOGE', 'JASMY', 'ADA', 'LINK', 'SOL'] # SHIB replaced with JASMY
+        self.available_coins = ['XRP', 'DOGE', 'ASTR', 'ADA', 'LINK', 'SOL'] # SOL Added
         self.indicator_history_length = 10
 
     def get_real_time_data(self, symbol: str, interval: str = '3m', limit: int = 100) -> pd.DataFrame:
@@ -462,28 +468,12 @@ class RealMarketData:
                 # Rate limiting - add small delay between requests
                 time.sleep(0.1)
                 
-                # Special handling for SHIB - check if it exists on Binance
-                if coin == 'SHIB':
-                    # Try SHIBUSDT first, if not available try SHIB/USDT
-                    try:
-                        response = requests.get(f"{self.spot_url}/ticker/price?symbol=SHIBUSDT", timeout=5)
-                        response.raise_for_status()
-                        data = response.json()
-                        price_val = float(data['price'])
-                        if price_val <= 0:
-                            raise ValueError("SHIB price is zero")
-                    except Exception as e:
-                        print(f"⚠️ SHIB price error: {e}. SHIB may not be available on Binance Futures.")
-                        # Use a reasonable fallback price for SHIB
-                        price_val = 0.000025  # Approximate SHIB price
-                        print(f"   Using fallback SHIB price: ${price_val:.6f}")
-                else:
-                    response = requests.get(f"{self.spot_url}/ticker/price?symbol={coin}USDT", timeout=5)
-                    response.raise_for_status()
-                    data = response.json()
-                    price_val = float(data['price'])
+                response = requests.get(f"{self.spot_url}/ticker/price?symbol={coin}USDT", timeout=5)
+                response.raise_for_status()
+                data = response.json()
                 
                 # Validate price data
+                price_val = float(data['price'])
                 if price_val <= 0:
                     print(f"⚠️ Invalid price for {coin}: ${price_val:.4f}. Using fallback...")
                     price_val = self._get_fallback_price(coin)
@@ -674,17 +664,13 @@ class PortfolioManager:
             return 0.0
     
     def calculate_risk_usd(self, entry_price: float, stop_loss: float, quantity: float, direction: str) -> float:
-        """Calculate risk in USD for a position (NOF1AI Advanced Style)."""
+        """Calculate risk in USD for a position."""
         if direction == 'long':
             risk_per_unit = entry_price - stop_loss
         else:
             risk_per_unit = stop_loss - entry_price
         
-        risk_usd = abs(risk_per_unit * quantity)
-        
-        # Apply NOF1AI risk management: cap at 25% of portfolio
-        max_risk = self.total_value * 0.25
-        return min(risk_usd, max_risk)
+        return abs(risk_per_unit * quantity)
 
     def get_manual_override(self) -> Dict:
         """Checks for and deletes the manual override file."""
@@ -703,13 +689,11 @@ class PortfolioManager:
         liq_price = entry_price * (1 - margin_diff) if direction == 'long' else entry_price * (1 + margin_diff)
         return max(0.0, liq_price)
 
-    # --- NEW: Enhanced Auto TP/SL Check with Advanced Exit Strategies ---
+    # --- NEW: Auto TP/SL Check ---
     def check_and_execute_tp_sl(self, current_prices: Dict[str, float]):
-        """Checks if any open position hit TP or SL and closes them automatically with enhanced exit strategies."""
-        print("🔎 Checking for TP/SL triggers with enhanced exit strategies...")
+        """Checks if any open position hit TP or SL and closes them automatically."""
+        print("🔎 Checking for TP/SL triggers...")
         closed_positions = [] # Keep track of positions closed in this check
-        updated_stops = [] # Track positions with updated trailing stops
-        
         for coin, position in list(self.positions.items()): # Iterate over a copy for safe deletion
             if coin not in current_prices or not isinstance(current_prices[coin], (int, float)) or current_prices[coin] <= 0:
                 continue # Skip if price is invalid
@@ -732,44 +716,6 @@ class PortfolioManager:
             try: sl = float(sl) if sl is not None else None
             except (ValueError, TypeError): sl = None
 
-            # Enhanced exit strategy check
-            exit_decision = self.enhanced_exit_strategy(position, current_price)
-            
-            if exit_decision['action'] == 'partial_close':
-                # Partial profit taking
-                close_percent = exit_decision['percent']
-                close_quantity = quantity * close_percent
-                
-                if direction == 'long': profit = (current_price - entry_price) * close_quantity
-                else: profit = (entry_price - current_price) * close_quantity
-                
-                # Update position quantity
-                position['quantity'] = quantity * (1 - close_percent)
-                position['margin_usd'] = margin_used * (1 - close_percent)
-                position['notional_usd'] = position['notional_usd'] * (1 - close_percent)
-                
-                # Add profit to balance
-                self.current_balance += (margin_used * close_percent + profit)
-                
-                print(f"⚡ PARTIAL CLOSE {coin} ({direction}): {exit_decision['reason']} - Closed {close_percent*100}% at price ${format_num(current_price, 4)}")
-                print(f"   Partial PnL: ${format_num(profit, 2)}")
-                
-                history_entry = {
-                    "symbol": coin, "direction": direction, "entry_price": entry_price, "exit_price": current_price,
-                    "quantity": close_quantity, "notional_usd": position.get('notional_usd', 'N/A') * close_percent, 
-                    "pnl": profit, "entry_time": position['entry_time'], "exit_time": datetime.now().isoformat(),
-                    "leverage": position.get('leverage', 'N/A'), "close_reason": exit_decision['reason']
-                }
-                self.add_to_history(history_entry)
-                continue  # Continue with remaining position
-            
-            elif exit_decision['action'] == 'update_stop':
-                # Update trailing stop
-                updated_stops.append(coin)
-                print(f"📈 TRAILING STOP UPDATE {coin}: New stop at ${format_num(exit_decision['new_stop'], 4)}")
-                continue
-            
-            # Traditional TP/SL checks (only if no enhanced exit triggered)
             if tp is not None:
                 if direction == 'long' and current_price >= tp: close_reason = f"Profit Target ({tp}) hit"
                 elif direction == 'short' and current_price <= tp: close_reason = f"Profit Target ({tp}) hit"
@@ -802,87 +748,10 @@ class PortfolioManager:
 
         if closed_positions:
              print(f"✅ Auto-closed positions: {', '.join(closed_positions)}")
-        if updated_stops:
-             print(f"📈 Updated trailing stops: {', '.join(updated_stops)}")
-             
-        return len(closed_positions) > 0  # Indicate if any positions were closed
-
-    def calculate_dynamic_position_size(self, coin: str, confidence: float, market_regime: str, trend_strength: int) -> float:
-        """Calculate dynamic position size based on multiple factors"""
-        base_risk = 25.0  # Reduced maximum risk to $25
-        
-        # Confidence factor
-        confidence_multiplier = confidence
-        
-        # Market regime factor
-        if market_regime == "BULLISH":
-            regime_multiplier = 1.2
-        elif market_regime == "BEARISH":
-            regime_multiplier = 0.8
+             return True # Indicate that positions were closed
         else:
-            regime_multiplier = 1.0
-        
-        # Trend strength factor
-        trend_multiplier = 1.0 + (trend_strength * 0.1)
-        
-        # Volume consideration
-        try:
-            indicators_3m = self.market_data.get_technical_indicators(coin, '3m')
-            volume = indicators_3m.get('volume', 0)
-            avg_volume = indicators_3m.get('avg_volume', 0)
-            
-            # Volume multiplier: higher volume = higher confidence
-            if volume > avg_volume * 2:
-                volume_multiplier = 1.2
-            elif volume > avg_volume:
-                volume_multiplier = 1.1
-            else:
-                volume_multiplier = 0.8  # Penalize low volume
-        except:
-            volume_multiplier = 1.0
-        
-        # Dynamic risk calculation
-        dynamic_risk = base_risk * confidence_multiplier * regime_multiplier * trend_multiplier * volume_multiplier
-        
-        # Maximum risk limit
-        return min(dynamic_risk, 25.0)
-
-    def enhanced_exit_strategy(self, position: Dict, current_price: float) -> Dict[str, Any]:
-        """Enhanced exit strategy with trailing stops and partial profit taking"""
-        entry_price = position['entry_price']
-        direction = position['direction']
-        stop_loss = position['exit_plan']['stop_loss']
-        profit_target = position['exit_plan']['profit_target']
-        
-        exit_decision = {"action": "hold", "reason": "No exit trigger"}
-        
-        if direction == 'long':
-            unrealized_pnl_percent = (current_price - entry_price) / entry_price
-            
-            # Partial profit taking at 1% gain
-            if unrealized_pnl_percent >= 0.01:  # 1% profit
-                take_profit_percent = 0.5  # Close 50% of position
-                return {"action": "partial_close", "percent": take_profit_percent, "reason": "Partial profit taking at 1% gain"}
-            
-            # Trailing stop (2% above entry)
-            trailing_stop = entry_price * 1.02
-            if current_price >= trailing_stop:
-                position['exit_plan']['stop_loss'] = trailing_stop
-                return {"action": "update_stop", "new_stop": trailing_stop, "reason": "Trailing stop updated"}
-        
-        elif direction == 'short':
-            unrealized_pnl_percent = (entry_price - current_price) / entry_price
-            
-            if unrealized_pnl_percent >= 0.01:  # 1% profit
-                take_profit_percent = 0.5
-                return {"action": "partial_close", "percent": take_profit_percent, "reason": "Partial profit taking at 1% gain"}
-            
-            trailing_stop = entry_price * 0.98
-            if current_price <= trailing_stop:
-                position['exit_plan']['stop_loss'] = trailing_stop
-                return {"action": "update_stop", "new_stop": trailing_stop, "reason": "Trailing stop updated"}
-        
-        return exit_decision
+             print("   No TP/SL triggers found.")
+             return False
 
     def calculate_dynamic_risk(self, market_regime: str, confidence: float) -> float:
         """Calculate dynamic risk based on market regime and confidence"""
@@ -901,15 +770,6 @@ class PortfolioManager:
             base_risk *= 0.9  # Low confidence: -10%
             
         return min(base_risk, 60.0)  # Cap at $60 maximum risk
-
-    def calculate_dynamic_risk_limit(self) -> float:
-        """Calculate dynamic risk limit based on current portfolio value (25% of portfolio)"""
-        risk_percentage = 0.25  # 25% of portfolio
-        min_risk = 10.0  # Minimum $10 risk limit
-        max_risk = 100.0  # Maximum $100 risk limit
-        
-        dynamic_limit = self.total_value * risk_percentage
-        return max(min_risk, min(max_risk, dynamic_limit))
 
     def get_volume_threshold(self, market_regime: str, signal: str) -> float:
         """Get volume threshold based on market regime and signal type"""
@@ -995,8 +855,7 @@ class PortfolioManager:
                     calculated_notional_usd = min(calculated_notional_usd, self.max_trade_notional_usd)
                     print(f"   Confidence-based sizing: ${calculated_notional_usd:.2f} notional (min: ${min_notional})")
                 
-                # Check risk management constraints with dynamic limits
-                dynamic_risk_limit = self.calculate_dynamic_risk_limit()
+                # Check risk management constraints
                 risk_decision = self.risk_manager.should_enter_trade(
                     symbol=coin,
                     current_positions=self.positions,
@@ -1004,8 +863,7 @@ class PortfolioManager:
                     confidence=confidence,
                     proposed_notional=calculated_notional_usd,
                     current_balance=self.current_balance,
-                    ai_risk_usd=trade.get('risk_usd'),  # Pass AI's risk_usd value
-                    dynamic_risk_limit=dynamic_risk_limit  # Pass dynamic risk limit
+                    ai_risk_usd=trade.get('risk_usd')  # Pass AI's risk_usd value
                 )
                 
                 if not risk_decision['should_enter']:
@@ -1028,17 +886,13 @@ class PortfolioManager:
                 direction = 'long' if signal == 'buy_to_enter' else 'short'
                 estimated_liq_price = self._estimate_liquidation_price(current_price, leverage, direction)
 
-                # Calculate actual risk_usd for the position
-                actual_risk_usd = self.calculate_risk_usd(current_price, stop_loss, quantity_coin, direction)
-                
                 self.positions[coin] = {
                     'symbol': coin, 'direction': direction, 'quantity': quantity_coin, 'entry_price': current_price,
                     'entry_time': datetime.now().isoformat(), 'current_price': current_price, 'unrealized_pnl': 0.0,
                     'notional_usd': notional_usd, 'margin_usd': margin_usd, 'leverage': leverage,
                     'liquidation_price': estimated_liq_price, 'confidence': confidence,
                     'exit_plan': { 'profit_target': trade.get('profit_target'), 'stop_loss': trade.get('stop_loss'), 'invalidation_condition': trade.get('invalidation_condition') },
-                    'risk_usd': actual_risk_usd,
-                    'sl_oid': -1, 'tp_oid': -1, 'entry_oid': -1, 'wait_for_fill': False
+                    'risk_usd': trade.get('risk_usd')
                 }
                 print(f"✅ {signal.upper()}: Opened {direction} {coin} ({format_num(quantity_coin, 4)} @ ${format_num(current_price, 4)} / Notional ${format_num(notional_usd, 2)} / Margin ${format_num(margin_usd, 2)} / Est. Liq: ${format_num(estimated_liq_price, 4)})")
 
@@ -1085,243 +939,6 @@ class AlphaArenaDeepSeek:
         self.risk_manager = AdvancedRiskManager()
         self.invocation_count = 0 # Track AI calls since bot start
 
-    def get_max_positions_for_cycle(self, cycle_number: int) -> int:
-        """Cycle bazlı maximum pozisyon limiti - Yavaş başlama mekanizması"""
-        if cycle_number <= 3:
-            return 2  # İlk 3 cycle: max 2 pozisyon
-        elif cycle_number <= 6:
-            return 4  # Sonraki 3 cycle: max 4 pozisyon
-        else:
-            return 5  # Full kapasite
-
-    def check_trend_alignment(self, coin: str) -> bool:
-        """Check if trends are aligned across multiple timeframes"""
-        try:
-            indicators_4h = self.market_data.get_technical_indicators(coin, '4h')
-            indicators_3m = self.market_data.get_technical_indicators(coin, '3m')
-            
-            if 'error' in indicators_4h or 'error' in indicators_3m:
-                return False
-            
-            price_4h = indicators_4h.get('current_price')
-            ema20_4h = indicators_4h.get('ema_20')
-            price_3m = indicators_3m.get('current_price')
-            ema20_3m = indicators_3m.get('ema_20')
-            
-            # Trend alignment: Both timeframes in same direction
-            trend_aligned = (price_4h > ema20_4h and price_3m > ema20_3m) or \
-                           (price_4h < ema20_4h and price_3m < ema20_3m)
-            
-            return trend_aligned
-            
-        except Exception as e:
-            print(f"⚠️ Trend alignment error for {coin}: {e}")
-            return False
-
-    def check_momentum_alignment(self, coin: str) -> bool:
-        """Check if momentum indicators are aligned across timeframes"""
-        try:
-            indicators_4h = self.market_data.get_technical_indicators(coin, '4h')
-            indicators_3m = self.market_data.get_technical_indicators(coin, '3m')
-            
-            if 'error' in indicators_4h or 'error' in indicators_3m:
-                return False
-            
-            rsi_3m = indicators_3m.get('rsi_14', 50)
-            rsi_4h = indicators_4h.get('rsi_14', 50)
-            macd_3m = indicators_3m.get('macd', 0)
-            macd_4h = indicators_4h.get('macd', 0)
-            
-            # Momentum alignment: Both timeframes showing same momentum direction
-            momentum_aligned = (rsi_3m > 50 and rsi_4h > 50 and macd_3m > 0 and macd_4h > 0) or \
-                              (rsi_3m < 50 and rsi_4h < 50 and macd_3m < 0 and macd_4h < 0)
-            
-            return momentum_aligned
-            
-        except Exception as e:
-            print(f"⚠️ Momentum alignment error for {coin}: {e}")
-            return False
-
-    def enhanced_trend_detection(self, coin: str) -> Dict[str, Any]:
-        """Enhanced trend detection with multiple timeframe analysis (Nof1AI Blog Style)"""
-        try:
-            indicators_4h = self.market_data.get_technical_indicators(coin, '4h')
-            indicators_3m = self.market_data.get_technical_indicators(coin, '3m')
-            
-            if 'error' in indicators_4h or 'error' in indicators_3m:
-                return {'trend_strength': 0, 'trend_direction': 'UNCLEAR', 'ema_comparison': 'N/A', 'volume_confidence': 0.0}
-            
-            price_4h = indicators_4h.get('current_price')
-            ema20_4h = indicators_4h.get('ema_20')
-            ema50_4h = indicators_4h.get('ema_50')
-            price_3m = indicators_3m.get('current_price')
-            ema20_3m = indicators_3m.get('ema_20')
-            
-            # Nof1AI Blog Style: EMA20 vs EMA50 comparison
-            ema_comparison = f"20-Period EMA: {format_num(ema20_4h)} vs. 50-Period EMA: {format_num(ema50_4h)}"
-            
-            trend_strength = 0
-            trend_direction = 'NEUTRAL'
-            
-            # 4h EMA alignment (strong trend indicator) - Nof1AI Blog Style
-            if ema20_4h > ema50_4h and price_4h > ema20_4h:
-                trend_strength += 3  # Strong bullish (EMA20 > EMA50 + price > EMA20)
-                trend_direction = 'STRONG_BULLISH'
-            elif ema20_4h < ema50_4h and price_4h < ema20_4h:
-                trend_strength += 3  # Strong bearish (EMA20 < EMA50 + price < EMA20)
-                trend_direction = 'STRONG_BEARISH'
-            elif ema20_4h > ema50_4h:
-                trend_strength += 1  # Weak bullish (EMA20 > EMA50 but price < EMA20)
-                trend_direction = 'WEAK_BULLISH'
-            elif ema20_4h < ema50_4h:
-                trend_strength += 1  # Weak bearish (EMA20 < EMA50 but price > EMA20)
-                trend_direction = 'WEAK_BEARISH'
-            
-            # 3m trend alignment
-            if (price_4h > ema20_4h and price_3m > ema20_3m) or \
-               (price_4h < ema20_4h and price_3m < ema20_3m):
-                trend_strength += 1  # Multi-timeframe alignment bonus
-            
-            # Volume Confirmation (Nof1AI Blog Style)
-            volume_confidence = self.calculate_volume_confidence(coin)
-            
-            return {
-                'trend_strength': trend_strength,
-                'trend_direction': trend_direction,
-                'ema_comparison': ema_comparison,
-                'price_vs_ema20_4h': 'ABOVE' if price_4h > ema20_4h else 'BELOW',
-                'price_vs_ema20_3m': 'ABOVE' if price_3m > ema20_3m else 'BELOW',
-                'volume_confidence': volume_confidence
-            }
-            
-        except Exception as e:
-            print(f"⚠️ Enhanced trend detection error for {coin}: {e}")
-            return {'trend_strength': 0, 'trend_direction': 'UNCLEAR', 'ema_comparison': 'ERROR', 'volume_confidence': 0.0}
-
-    def calculate_volume_confidence(self, coin: str) -> float:
-        """Calculate volume confidence based on current vs average volume (Nof1AI Blog Style)"""
-        try:
-            indicators_3m = self.market_data.get_technical_indicators(coin, '3m')
-            if 'error' in indicators_3m:
-                return 0.0
-            
-            current_volume = indicators_3m.get('volume', 0)
-            avg_volume = indicators_3m.get('avg_volume', 0)
-            
-            if avg_volume <= 0:
-                return 0.0
-            
-            # Nof1AI Blog Style: "Current Volume: 53.457 vs. Average Volume: 4329.191"
-            volume_ratio = current_volume / avg_volume
-            
-            # Volume confidence scoring
-            if volume_ratio >= 2.0:  # High volume: >2x average
-                return 1.0
-            elif volume_ratio >= 1.5:  # Medium-high volume: >1.5x average
-                return 0.8
-            elif volume_ratio >= 1.0:  # Normal volume: >1x average
-                return 0.6
-            elif volume_ratio >= 0.5:  # Low volume: >0.5x average
-                return 0.3
-            else:  # Very low volume: <0.5x average
-                return 0.1
-                
-        except Exception as e:
-            print(f"⚠️ Volume confidence calculation error for {coin}: {e}")
-            return 0.0
-
-    def generate_advanced_exit_plan(self, coin: str, direction: str, entry_price: float) -> Dict[str, Any]:
-        """Generate advanced exit plan with momentum failure detection (Nof1AI Blog Style)"""
-        try:
-            indicators_4h = self.market_data.get_technical_indicators(coin, '4h')
-            indicators_3m = self.market_data.get_technical_indicators(coin, '3m')
-            
-            if 'error' in indicators_4h or 'error' in indicators_3m:
-                return {
-                    'profit_target': None,
-                    'stop_loss': None,
-                    'invalidation_condition': 'Unable to generate exit plan due to data error'
-                }
-            
-            current_price = indicators_3m.get('current_price', entry_price)
-            atr_14 = indicators_4h.get('atr_14', 0)
-            rsi_14 = indicators_4h.get('rsi_14', 50)
-            ema_20 = indicators_4h.get('ema_20', current_price)
-            
-            # Calculate TP/SL based on ATR (Nof1AI Blog Style)
-            if direction == 'long':
-                # Long position: TP = entry + 2x ATR, SL = entry - 1x ATR
-                profit_target = entry_price + (atr_14 * 2)
-                stop_loss = entry_price - atr_14
-                
-                # Advanced invalidation conditions (Nof1AI Blog Style)
-                if rsi_14 > 70:
-                    invalidation_condition = "If 4H RSI breaks back below 60, signaling momentum failure"
-                elif rsi_14 < 40:
-                    invalidation_condition = "If 4H RSI breaks above 50, signaling momentum recovery"
-                else:
-                    invalidation_condition = "If 4H price closes below 4H EMA20, signaling trend reversal"
-                    
-            else:  # short
-                # Short position: TP = entry - 2x ATR, SL = entry + 1x ATR
-                profit_target = entry_price - (atr_14 * 2)
-                stop_loss = entry_price + atr_14
-                
-                # Advanced invalidation conditions (Nof1AI Blog Style)
-                if rsi_14 < 30:
-                    invalidation_condition = "If 4H RSI breaks back above 40, signaling momentum failure"
-                elif rsi_14 > 60:
-                    invalidation_condition = "If 4H RSI breaks below 50, signaling momentum recovery"
-                else:
-                    invalidation_condition = "If 4H price closes above 4H EMA20, signaling trend reversal"
-            
-            return {
-                'profit_target': round(profit_target, 4),
-                'stop_loss': round(stop_loss, 4),
-                'invalidation_condition': invalidation_condition,
-                'atr_based': True,
-                'rsi_context': f"4H RSI: {rsi_14:.1f}",
-                'ema_context': f"4H EMA20: {ema_20:.4f}"
-            }
-            
-        except Exception as e:
-            print(f"⚠️ Advanced exit plan generation error for {coin}: {e}")
-            return {
-                'profit_target': None,
-                'stop_loss': None,
-                'invalidation_condition': f'Error generating exit plan: {str(e)}'
-            }
-
-    def get_market_regime(self) -> str:
-        """Detect overall market regime across all coins"""
-        try:
-            bullish_count = 0
-            bearish_count = 0
-            
-            for coin in self.market_data.available_coins:
-                indicators_4h = self.market_data.get_technical_indicators(coin, '4h')
-                if 'error' in indicators_4h:
-                    continue
-                
-                price = indicators_4h.get('current_price')
-                ema20 = indicators_4h.get('ema_20')
-                
-                if price > ema20:
-                    bullish_count += 1
-                else:
-                    bearish_count += 1
-            
-            if bullish_count >= 4:  # At least 4 coins bullish
-                return "BULLISH"
-            elif bearish_count >= 4:  # At least 4 coins bearish
-                return "BEARISH"
-            else:
-                return "NEUTRAL"
-                
-        except Exception as e:
-            print(f"⚠️ Market regime detection error: {e}")
-            return "NEUTRAL"
-
     def detect_market_regime(self, coin: str) -> str:
         """Detect market condition based on 4h indicators"""
         try:
@@ -1356,18 +973,17 @@ class AlphaArenaDeepSeek:
             return "UNCLEAR"
 
     def get_trading_context(self) -> Dict[str, Any]:
-        """Get historical context from recent cycles - Enhanced with 5 cycle analysis"""
+        """Get historical context from recent cycles (SAFE - no risk management changes)"""
         try:
             if len(self.portfolio.cycle_history) < 2:
                 return {
                     "recent_decisions": [], 
                     "market_behavior": "Initial cycles - observing",
-                    "total_cycles_analyzed": len(self.portfolio.cycle_history),
-                    "performance_trend": "No data yet"
+                    "total_cycles_analyzed": len(self.portfolio.cycle_history)
                 }
             
-            # Use last 5 cycles for enhanced analysis
-            recent_cycles = self.portfolio.cycle_history[-5:]
+            # Only use last 3 cycles for safety
+            recent_cycles = self.portfolio.cycle_history[-3:]
             recent_decisions = []
             
             for cycle in recent_cycles:
@@ -1378,20 +994,26 @@ class AlphaArenaDeepSeek:
                             'coin': coin,
                             'signal': trade.get('signal'),
                             'cycle': cycle.get('cycle'),
-                            'confidence': trade.get('confidence', 0.5),
-                            'timestamp': cycle.get('timestamp')
+                            'confidence': trade.get('confidence', 0.5)
                         })
             
-            # Enhanced market behavior analysis
-            market_behavior = self._analyze_market_behavior(recent_cycles)
-            performance_trend = self._analyze_performance_trend(recent_cycles)
+            # Simple market behavior analysis (safe patterns only)
+            market_behavior = "Consolidating"
+            if len(recent_decisions) > 0:
+                long_count = sum(1 for d in recent_decisions if d.get('signal') == 'buy_to_enter')
+                short_count = sum(1 for d in recent_decisions if d.get('signal') == 'sell_to_enter')
+                
+                if long_count > short_count:
+                    market_behavior = "Bullish bias"
+                elif short_count > long_count:
+                    market_behavior = "Bearish bias"
+                else:
+                    market_behavior = "Balanced"
             
             return {
                 "recent_decisions": recent_decisions,
                 "market_behavior": market_behavior,
-                "performance_trend": performance_trend,
-                "total_cycles_analyzed": len(recent_cycles),
-                "analysis_period": f"Last {len(recent_cycles)} cycles"
+                "total_cycles_analyzed": len(recent_cycles)
             }
             
         except Exception as e:
@@ -1399,190 +1021,26 @@ class AlphaArenaDeepSeek:
             return {
                 "recent_decisions": [], 
                 "market_behavior": "Error in context analysis",
-                "performance_trend": "Unknown",
                 "total_cycles_analyzed": 0
             }
 
-    def _analyze_market_behavior(self, recent_cycles: List[Dict]) -> str:
-        """Analyze market behavior based on recent trading decisions"""
-        if not recent_cycles:
-            return "No recent activity"
-        
-        recent_decisions = []
-        for cycle in recent_cycles:
-            decisions = cycle.get('decisions', {})
-            for coin, trade in decisions.items():
-                if isinstance(trade, dict) and trade.get('signal') in ['buy_to_enter', 'sell_to_enter']:
-                    recent_decisions.append(trade)
-        
-        if not recent_decisions:
-            return "Consolidating - No recent entries"
-        
-        long_count = sum(1 for d in recent_decisions if d.get('signal') == 'buy_to_enter')
-        short_count = sum(1 for d in recent_decisions if d.get('signal') == 'sell_to_enter')
-        
-        # Enhanced analysis with confidence weighting
-        long_confidence = sum(d.get('confidence', 0.5) for d in recent_decisions if d.get('signal') == 'buy_to_enter')
-        short_confidence = sum(d.get('confidence', 0.5) for d in recent_decisions if d.get('signal') == 'sell_to_enter')
-        
-        if long_count > short_count and long_confidence > short_confidence:
-            return f"Strong Bullish bias ({long_count} longs, avg confidence: {long_confidence/long_count:.2f})"
-        elif short_count > long_count and short_confidence > long_confidence:
-            return f"Strong Bearish bias ({short_count} shorts, avg confidence: {short_confidence/short_count:.2f})"
-        elif long_count > short_count:
-            return f"Bullish bias ({long_count} longs)"
-        elif short_count > long_count:
-            return f"Bearish bias ({short_count} shorts)"
-        else:
-            return "Balanced market"
-
-    def _analyze_performance_trend(self, recent_cycles: List[Dict]) -> str:
-        """Analyze performance trend based on recent cycles"""
-        if len(recent_cycles) < 3:
-            return "Insufficient data for trend analysis"
-        
-        # Analyze decision patterns
-        entry_signals = 0
-        hold_signals = 0
-        close_signals = 0
-        
-        for cycle in recent_cycles:
-            decisions = cycle.get('decisions', {})
-            for trade in decisions.values():
-                if isinstance(trade, dict):
-                    signal = trade.get('signal')
-                    if signal == 'buy_to_enter' or signal == 'sell_to_enter':
-                        entry_signals += 1
-                    elif signal == 'hold':
-                        hold_signals += 1
-                    elif signal == 'close_position':
-                        close_signals += 1
-        
-        total_signals = entry_signals + hold_signals + close_signals
-        if total_signals == 0:
-            return "No trading activity"
-        
-        entry_rate = entry_signals / total_signals
-        close_rate = close_signals / total_signals
-        
-        if entry_rate > 0.4 and close_rate < 0.2:
-            return "Aggressive accumulation phase"
-        elif close_rate > 0.3:
-            return "Profit-taking phase"
-        elif hold_signals > entry_signals + close_signals:
-            return "Consolidation phase"
-        else:
-            return "Balanced trading"
-
-    def get_enhanced_context(self) -> Dict[str, Any]:
-        """Get enhanced context for AI decision making"""
-        try:
-            from enhanced_context_provider import EnhancedContextProvider
-            provider = EnhancedContextProvider()
-            return provider.generate_enhanced_context()
-        except Exception as e:
-            print(f"⚠️ Enhanced context error: {e}")
-            return {"error": f"Enhanced context failed: {str(e)}"}
-
-    def format_position_context(self, position_context: Dict) -> str:
-        """Format position context for prompt"""
-        if not position_context:
-            return "No open positions"
-        
-        formatted = ""
-        for symbol, data in position_context.items():
-            pnl = data.get('unrealized_pnl', 0)
-            progress = data.get('profit_target_progress', 0)
-            time_in_trade = data.get('time_in_trade_minutes', 0)
-            formatted += f"  {symbol}: ${pnl:.2f} PnL, {progress}% to target, {time_in_trade}min in trade\n"
-        return formatted
-
-    def format_market_regime_context(self, market_regime: Dict) -> str:
-        """Format market regime context for prompt"""
-        if not market_regime:
-            return "Market regime: Unknown"
-        
-        current = market_regime.get('current_regime', 'unknown')
-        strength = market_regime.get('regime_strength', 0)
-        return f"Current: {current}, Strength: {strength}"
-
-    def format_performance_insights(self, performance_insights: Dict) -> str:
-        """Format performance insights for prompt"""
-        if not performance_insights:
-            return "No performance insights available"
-        
-        insights = performance_insights.get('insights', [])
-        if not insights:
-            return "No performance insights available"
-        
-        formatted = ""
-        for insight in insights:
-            formatted += f"  • {insight}\n"
-        return formatted
-
-    def format_risk_context(self, risk_context: Dict) -> str:
-        """Format risk context for prompt"""
-        if not risk_context:
-            return "Risk context: Unknown"
-        
-        total_risk = risk_context.get('total_risk_usd', 0)
-        risk_percentage = risk_context.get('risk_percentage', 0)
-        position_count = risk_context.get('position_count', 0)
-        
-        return f"Total Risk: ${total_risk:.2f}, Risk %: {risk_percentage:.1f}%, Positions: {position_count}"
-
-    def format_suggestions(self, suggestions: List[str]) -> str:
-        """Format suggestions for prompt"""
-        if not suggestions:
-            return "No suggestions at this time"
-        
-        formatted = ""
-        for suggestion in suggestions:
-            formatted += f"  • {suggestion}\n"
-        return formatted
-
-    def format_list(self, lst, precision=4):
-        """Helper function to format lists for prompt display"""
-        if not isinstance(lst, list): return []
-        return [format_num(x, precision) if x is not None else 'N/A' for x in lst]
-
     def generate_alpha_arena_prompt(self) -> str:
-        """Generate prompt with enhanced data, indicator history and AI decision context"""
+        """Generate prompt with enhanced data, indicator history"""
         current_time = datetime.now(); minutes_running = int((current_time - self.portfolio.start_time).total_seconds() / 60)
         # Use internal invocation counter, don't increment here, do it in run_cycle
         # self.invocation_count += 1
 
-        # Get enhanced context for AI decision making
-        enhanced_context = self.get_enhanced_context()
-        
         prompt = f"""
 USER_PROMPT:
 It has been {minutes_running} minutes since you started trading. The current time is {current_time} and you've been invoked {self.invocation_count} times. Below, we are providing you with a variety of state data, price data, and predictive signals so you can discover alpha. Below that is your current account information, value, performance, positions, etc.
 
 ALL OF THE PRICE OR SIGNAL DATA BELOW IS ORDERED: OLDEST → NEWEST
-Timeframes note: Unless stated otherwise in a section title, intraday series are provided at 3‑minute intervals. If a coin uses a different interval, it is explicitly stated in that coin's section.
-
-{'='*20} ENHANCED DECISION CONTEXT (Non-binding suggestions) {'='*20}
-
-This section provides enhanced context for your decision making. These are suggestions only - final decisions remain with you.
-
-POSITION MANAGEMENT CONTEXT:
-{self.format_position_context(enhanced_context.get('position_context', {}))}
-
-MARKET REGIME ANALYSIS:
-{self.format_market_regime_context(enhanced_context.get('market_regime', {}))}
-
-PERFORMANCE INSIGHTS:
-{self.format_performance_insights(enhanced_context.get('performance_insights', {}))}
-
-RISK MANAGEMENT CONTEXT:
-{self.format_risk_context(enhanced_context.get('risk_context', {}))}
-
-SUGGESTIONS (Non-binding):
-{self.format_suggestions(enhanced_context.get('suggestions', []))}
-
-REMEMBER: These are suggestions only. You make the final trading decisions based on your systematic analysis.
+Timeframes note: Unless stated otherwise in a section title, intraday series are provided at 3‑minute intervals. If a coin uses a different interval, it is explicitly stated in that coin’s section.
 """
+
+        def format_list(lst, precision=4):
+            if not isinstance(lst, list): return []
+            return [format_num(x, precision) if x is not None else 'N/A' for x in lst]
 
         # --- Loop through available coins ---
         for coin in self.market_data.available_coins:
@@ -1607,11 +1065,11 @@ REMEMBER: These are suggestions only. You make the final trading decisions based
                      return f"{prefix}Error fetching indicator data: {error_msg}\n"
                 # Format numbers using global helper
                 output = f"{prefix}current_price = {format_num(indicators.get('current_price', 'N/A'))}\n"
-                output += f"{prefix}Mid prices (last {len(indicators.get('price_series',[]))}): {self.format_list(indicators.get('price_series',[]))}\n"
-                output += f"{prefix}EMA indicators (20‑period): {self.format_list(indicators.get('ema_20_series',[]))}\n"
-                if 'rsi_7_series' in indicators: output += f"{prefix}RSI indicators (7‑Period): {self.format_list(indicators.get('rsi_7_series',[]), precision=3)}\n"
-                output += f"{prefix}RSI indicators (14‑Period): {self.format_list(indicators.get('rsi_14_series',[]), precision=3)}\n"
-                output += f"{prefix}MACD indicators: {self.format_list(indicators.get('macd_series',[]))}\n"
+                output += f"{prefix}Mid prices (last {len(indicators.get('price_series',[]))}): {format_list(indicators.get('price_series',[]))}\n"
+                output += f"{prefix}EMA indicators (20‑period): {format_list(indicators.get('ema_20_series',[]))}\n"
+                if 'rsi_7_series' in indicators: output += f"{prefix}RSI indicators (7‑Period): {format_list(indicators.get('rsi_7_series',[]), precision=3)}\n"
+                output += f"{prefix}RSI indicators (14‑Period): {format_list(indicators.get('rsi_14_series',[]), precision=3)}\n"
+                output += f"{prefix}MACD indicators: {format_list(indicators.get('macd_series',[]))}\n"
                 atr_3 = indicators.get('atr_3'); atr_14 = indicators.get('atr_14'); atr_str = ""
                 if atr_3 is not None and pd.notna(atr_3): atr_str += f"{prefix}3‑Period ATR: {format_num(atr_3)} vs "
                 atr_str += f"14‑Period ATR: {format_num(atr_14)}\n"; output += atr_str
@@ -1640,12 +1098,9 @@ REMEMBER: These are suggestions only. You make the final trading decisions based
         # Add historical context section
         trading_context = self.get_trading_context()
         
-        # Calculate current risk status - FIXED: Use margin_usd instead of risk_usd
-        total_margin_used = sum(pos.get('margin_usd', 0) for pos in self.portfolio.positions.values())
-        dynamic_risk_limit = self.portfolio.calculate_dynamic_risk_limit()
-        # FIX: Risk capacity should be based on available cash, not just dynamic limit
-        risk_capacity_remaining = min(dynamic_risk_limit - total_margin_used, self.portfolio.current_balance)
-        risk_capacity_remaining = max(0, risk_capacity_remaining)
+        # Calculate current risk status
+        total_risk_used = sum(pos.get('risk_usd', 0) for pos in self.portfolio.positions.values())
+        risk_capacity_remaining = max(0, 50 - total_risk_used)  # $50 max risk per trade
         current_positions_count = len(self.portfolio.positions)
         max_positions = 5
         
@@ -1657,9 +1112,9 @@ Recent Trading Decisions: {json.dumps(trading_context['recent_decisions'], inden
 
 {'='*20} REAL-TIME RISK STATUS {'='*20}
 
-CURRENT RISK STATUS: {current_positions_count} positions open, ${format_num(total_margin_used, 2)} margin used, ${format_num(risk_capacity_remaining, 2)} risk capacity remaining
-MAX POSITIONS: {max_positions}, MAX RISK PER TRADE: ${format_num(dynamic_risk_limit, 2)} (25% of ${format_num(self.portfolio.total_value, 2)} portfolio)
-IMPORTANT: When opening new positions, ensure total risk does not exceed ${format_num(dynamic_risk_limit, 2)} and position count does not exceed {max_positions}.
+CURRENT RISK STATUS: {current_positions_count} positions open, ${format_num(total_risk_used, 2)} risk used, ${format_num(risk_capacity_remaining, 2)} risk capacity remaining
+MAX POSITIONS: {max_positions}, MAX RISK PER TRADE: $50
+IMPORTANT: When opening new positions, ensure total risk does not exceed $50 and position count does not exceed {max_positions}.
 
 {'='*20} HERE IS YOUR ACCOUNT INFORMATION & PERFORMANCE {'='*20}
 
@@ -1699,7 +1154,7 @@ Current live positions & performance:"""
         return {"chain_of_thoughts": thoughts, "decisions": decisions}
 
     def _clean_ai_decisions(self, decisions: Dict) -> Dict:
-        """Clean up AI decisions - preserve position data for hold signals"""
+        """Clean up AI decisions - remove unnecessary 0 values for hold signals"""
         cleaned_decisions = {}
         for coin, trade in decisions.items():
             if not isinstance(trade, dict):
@@ -1708,10 +1163,10 @@ Current live positions & performance:"""
                 
             signal = trade.get('signal')
             if signal == 'hold':
-                # For hold signals, preserve all position data for risk management
+                # For hold signals, only keep the signal and remove unnecessary 0 values
                 cleaned_trade = {'signal': 'hold'}
                 
-                # If there's an open position, preserve ALL position data
+                # If there's an open position, preserve position-specific data
                 if coin in self.portfolio.positions:
                     position = self.portfolio.positions[coin]
                     cleaned_trade.update({
@@ -1721,12 +1176,7 @@ Current live positions & performance:"""
                         'profit_target': position.get('exit_plan', {}).get('profit_target'),
                         'stop_loss': position.get('exit_plan', {}).get('stop_loss'),
                         'risk_usd': position.get('risk_usd', 0),
-                        'invalidation_condition': position.get('exit_plan', {}).get('invalidation_condition'),
-                        'entry_price': position.get('entry_price', 0),
-                        'current_price': position.get('current_price', 0),
-                        'unrealized_pnl': position.get('unrealized_pnl', 0),
-                        'notional_usd': position.get('notional_usd', 0),
-                        'direction': position.get('direction', 'long')
+                        'invalidation_condition': position.get('exit_plan', {}).get('invalidation_condition')
                     })
                 cleaned_decisions[coin] = cleaned_trade
             else:
@@ -1735,131 +1185,11 @@ Current live positions & performance:"""
                 
         return cleaned_decisions
 
-    def check_coin_rotation(self, coin: str) -> bool:
-        """Coin rotation disabled - always allow trading"""
-        # Coin rotation system disabled - always return True to allow trading
-        return True
-
-    def detect_market_regime_overall(self) -> str:
-        """Detect overall market regime across all coins"""
-        try:
-            bullish_count = 0
-            bearish_count = 0
-            
-            for coin in self.market_data.available_coins:
-                indicators_4h = self.market_data.get_technical_indicators(coin, '4h')
-                if 'error' in indicators_4h:
-                    continue
-                
-                price = indicators_4h.get('current_price')
-                ema20 = indicators_4h.get('ema_20')
-                
-                if price > ema20:
-                    bullish_count += 1
-                else:
-                    bearish_count += 1
-            
-            if bullish_count >= 4:  # At least 4 coins bullish
-                return "BULLISH"
-            elif bearish_count >= 4:  # At least 4 coins bearish
-                return "BEARISH"
-            else:
-                return "NEUTRAL"
-                
-        except Exception as e:
-            print(f"⚠️ Market regime detection error: {e}")
-            return "NEUTRAL"
-
-    def calculate_optimal_cycle_frequency(self) -> int:
-        """Calculate optimal cycle frequency based on market volatility"""
-        try:
-            atr_values = []
-            for coin in self.market_data.available_coins:
-                indicators_3m = self.market_data.get_technical_indicators(coin, '3m')
-                if 'error' not in indicators_3m:
-                    atr = indicators_3m.get('atr_14', 0)
-                    if atr and atr > 0:
-                        atr_values.append(atr)
-            
-            if not atr_values:
-                return 120  # Default 2 minutes
-            
-            avg_atr = sum(atr_values) / len(atr_values)
-            
-            # Adjust cycle frequency based on volatility
-            if avg_atr < 0.3:    # Düşük volatility
-                return 240       # 4 dakikada bir cycle
-            elif avg_atr < 0.6:  # Orta volatility  
-                return 180       # 3 dakikada bir cycle
-            else:                # Yüksek volatility
-                return 120       # 2 dakikada bir cycle
-                
-        except Exception as e:
-            print(f"⚠️ Cycle frequency calculation error: {e}")
-            return 120  # Default 2 minutes
-
-    def adjust_position_size_by_trend(self, base_size: float, market_regime: str, signal: str) -> float:
-        """Adjust position size based on market regime and signal direction"""
-        if market_regime == "BULLISH" and signal == "buy_to_enter":
-            return base_size * 1.2  # %20 daha büyük long
-        elif market_regime == "BEARISH" and signal == "sell_to_enter":
-            return base_size * 1.2  # %20 daha büyük short
-        else:
-            return base_size * 0.8  # %20 daha küçük counter-trend
-
-    def track_performance_metrics(self, cycle_number: int):
-        """Her cycle'da temel performans metriklerini kaydet"""
-        try:
-            metrics = {
-                "cycle": cycle_number,
-                "timestamp": datetime.now().isoformat(),
-                "total_value": self.portfolio.total_value,
-                "total_return": self.portfolio.total_return,
-                "sharpe_ratio": self.portfolio.sharpe_ratio,
-                "open_positions": len(self.portfolio.positions),
-                "available_cash": self.portfolio.current_balance,
-                "total_trades": self.portfolio.trade_count
-            }
-            
-            # Performance history dosyasına kaydet
-            performance_history = safe_file_read("performance_history.json", [])
-            performance_history.append(metrics)
-            safe_file_write("performance_history.json", performance_history[-100:])  # Son 100 cycle
-            
-        except Exception as e:
-            print(f"⚠️ Performance tracking error: {e}")
-
-    def should_run_performance_analysis(self, cycle_number: int) -> bool:
-        """10 cycle'da bir veya kritik durumlarda analiz çalıştır"""
-        # Her 10 cycle'da bir
-        if cycle_number % 10 == 0:
-            return True
-        
-        # Büyük PnL değişikliklerinde
-        if abs(self.portfolio.total_return) > 10:  # %10'dan fazla değişim
-            return True
-        
-        # Çok fazla pozisyon açıldığında
-        if len(self.portfolio.positions) >= 4:
-            return True
-        
-        return False
-
     def run_trading_cycle(self, cycle_number: int):
-        """Run a single trading cycle with auto TP/SL and enhanced features"""
+        """Run a single trading cycle with auto TP/SL"""
         print(f"\n{'='*80}\n🔄 TRADING CYCLE {cycle_number} | ⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n{'='*80}")
         prompt, thoughts, decisions = "N/A", "N/A", {}
         try:
-            # Track performance metrics every cycle
-            self.track_performance_metrics(cycle_number)
-            
-            # Run performance analysis every 10 cycles or on critical conditions
-            if self.should_run_performance_analysis(cycle_number):
-                print(f"📊 PERFORMANCE ANALYSIS - Cycle {cycle_number}")
-                from performance_monitor import PerformanceMonitor
-                monitor = PerformanceMonitor()
-                report = monitor.analyze_performance(last_n_cycles=10)
-                monitor.print_performance_summary(report)
             print("\n📊 FETCHING MARKET DATA...")
             real_prices = self.market_data.get_all_real_prices()
             valid_prices = {k: v for k, v in real_prices.items() if isinstance(v, (int, float)) and v > 0}
@@ -1900,10 +1230,6 @@ Current live positions & performance:"""
 
             # Execute AI decisions only if it's a valid dict and NOT empty AND no manual override was active
             if isinstance(decisions, dict) and decisions and not manual_override:
-                # Apply slow start mechanism - limit positions based on cycle number
-                max_positions = self.get_max_positions_for_cycle(cycle_number)
-                current_positions = len(self.portfolio.positions)
-                
                 # Filter out decisions for coins that might have been closed by TP/SL in the same cycle
                 decisions_to_execute = {}
                 for coin, trade in decisions.items():
@@ -1911,25 +1237,6 @@ Current live positions & performance:"""
                     if positions_closed_by_tp_sl and coin in closed_positions:
                         print(f"ℹ️ Filtering AI decision for {coin} as it was closed by TP/SL this cycle.")
                     else:
-                        # Apply coin rotation check
-                        if trade.get('signal') in ['buy_to_enter', 'sell_to_enter']:
-                            if not self.check_coin_rotation(coin):
-                                continue
-                            
-                            # Apply slow start position limit
-                            if current_positions >= max_positions:
-                                print(f"⚠️ Position limit reached (Cycle {cycle_number}: max {max_positions} positions). Skipping {coin} entry.")
-                                continue
-                            current_positions += 1
-                            
-                            # Apply trend-based position sizing
-                            market_regime = self.detect_market_regime_overall()
-                            if 'quantity_usd' in trade:
-                                trade['quantity_usd'] = self.adjust_position_size_by_trend(
-                                    trade['quantity_usd'], market_regime, trade['signal']
-                                )
-                                print(f"📈 Trend-based sizing: {coin} position adjusted for {market_regime} regime")
-                        
                         # Execute all other decisions
                         decisions_to_execute[coin] = trade
 
@@ -1973,7 +1280,7 @@ Current live positions & performance:"""
                 print(f"  {coin} ({direction} {leverage}x): {format_num(qty, 4)} units | Notional ${format_num(notional, 2)} | Entry: ${format_num(entry, 4)} | PnL: {pnl_sign}${format_num(pnl, 2)} | Liq Est: ${format_num(liq, 4)}")
 
     def run_simulation(self, total_duration_hours: int = 168, cycle_interval_minutes: int = 2):
-        """Run the simulation with dynamic cycle frequency"""
+        """Run the simulation"""
         print(f"🚀 ALPHA ARENA - DEEPSEEK INTEGRATION (V{VERSION})")
         print(f"💡 Simulating with ${format_num(self.portfolio.initial_balance, 2)} budget for {total_duration_hours} hours.")
         print(f"   Trading: {', '.join(self.market_data.available_coins)}")
@@ -1981,7 +1288,7 @@ Current live positions & performance:"""
         print(f"   Trade History File: {self.portfolio.history_file}")
         print(f"   Cycle History File: {self.portfolio.cycle_history_file}")
         print(f"   Override File Check: {self.portfolio.override_file}")
-        print(f"   Dynamic Cycle Frequency: Enabled (2-4 minutes based on volatility)")
+        print(f"   Cycle Interval: {cycle_interval_minutes} minutes")
 
         end_time = datetime.now() + timedelta(hours=total_duration_hours)
         start_cycle = len(self.portfolio.cycle_history) + 1
@@ -1990,15 +1297,10 @@ Current live positions & performance:"""
 
         while datetime.now() < end_time:
             current_cycle_number += 1; cycle_start_time = time.time()
-            
-            # Calculate dynamic cycle frequency
-            dynamic_cycle_interval = self.calculate_optimal_cycle_frequency()
-            print(f"🔄 Dynamic cycle frequency: {dynamic_cycle_interval} seconds ({dynamic_cycle_interval/60:.1f} minutes)")
-            
             self.run_trading_cycle(current_cycle_number)
             if datetime.now() >= end_time: break
             elapsed_time = time.time() - cycle_start_time
-            sleep_time = max(0, dynamic_cycle_interval - elapsed_time)
+            sleep_time = max(0, (cycle_interval_minutes * 60) - elapsed_time)
             print(f"\n⏳ Cycle {current_cycle_number} complete in {format_num(elapsed_time,2)}s. Next cycle in {format_num(sleep_time/60, 2)} mins... (Ctrl+C to stop)")
             time.sleep(max(sleep_time, 0.5))
 
