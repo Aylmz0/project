@@ -37,6 +37,28 @@ class Config:
     # Risk Level Configuration
     RISK_LEVEL: str = os.getenv('RISK_LEVEL', 'medium').lower()
     
+    # Enhanced Trading Settings
+    SHORT_ENHANCEMENT_MULTIPLIER: float = float(os.getenv('SHORT_ENHANCEMENT_MULTIPLIER', '1.15'))  # %15 daha büyük short
+    VOLUME_QUALITY_THRESHOLDS: dict = {
+        'excellent': 3.0,  # >3x average volume
+        'good': 2.0,       # >2x average volume  
+        'fair': 1.5,       # >1.5x average volume
+        'poor': 1.0        # >1x average volume
+    }
+    MARKET_REGIME_MULTIPLIERS: dict = {
+        'BULLISH': 1.0,
+        'BEARISH': 0.7,
+        'NEUTRAL': 0.85
+    }
+    COIN_SPECIFIC_STOP_LOSS_MULTIPLIERS: dict = {
+        'SOL': 1.0,   # Daha agresif stop (volatile)
+        'ADA': 1.2,   # Normal stop (stabil)
+        'XRP': 1.1,   # Orta stop
+        'LINK': 1.1,  # Orta stop
+        'DOGE': 1.0,  # Daha agresif stop (volatile)
+        'JASMY': 1.0  # Daha agresif stop (volatile)
+    }
+    
     @classmethod
     def validate_config(cls) -> bool:
         """Validate that all required configuration is present."""

@@ -848,7 +848,7 @@ class PortfolioManager:
         return min(dynamic_risk, 25.0)
 
     def enhanced_exit_strategy(self, position: Dict, current_price: float) -> Dict[str, Any]:
-        """Enhanced exit strategy with trailing stops and partial profit taking"""
+        """Enhanced exit strategy with trailing stops and dynamic partial profit taking"""
         entry_price = position['entry_price']
         direction = position['direction']
         stop_loss = position['exit_plan']['stop_loss']
@@ -859,28 +859,54 @@ class PortfolioManager:
         if direction == 'long':
             unrealized_pnl_percent = (current_price - entry_price) / entry_price
             
-            # Partial profit taking at 1% gain
-            if unrealized_pnl_percent >= 0.01:  # 1% profit
-                take_profit_percent = 0.5  # Close 50% of position
-                return {"action": "partial_close", "percent": take_profit_percent, "reason": "Partial profit taking at 1% gain"}
+            # Enhanced Partial Profit Taking - Dynamic percentages based on profit level
+            if unrealized_pnl_percent >= 0.03:  # 3% profit - take 75%
+                take_profit_percent = 0.75
+                return {"action": "partial_close", "percent": take_profit_percent, "reason": "Enhanced profit taking at 3% gain (75%)"}
+            elif unrealized_pnl_percent >= 0.02:  # 2% profit - take 50%
+                take_profit_percent = 0.5
+                return {"action": "partial_close", "percent": take_profit_percent, "reason": "Enhanced profit taking at 2% gain (50%)"}
+            elif unrealized_pnl_percent >= 0.01:  # 1% profit - take 25%
+                take_profit_percent = 0.25
+                return {"action": "partial_close", "percent": take_profit_percent, "reason": "Enhanced profit taking at 1% gain (25%)"}
             
-            # Trailing stop (2% above entry)
-            trailing_stop = entry_price * 1.02
-            if current_price >= trailing_stop:
-                position['exit_plan']['stop_loss'] = trailing_stop
-                return {"action": "update_stop", "new_stop": trailing_stop, "reason": "Trailing stop updated"}
+            # Dynamic Trailing Stop based on profit level
+            if unrealized_pnl_percent >= 0.02:  # 2% profit - tighter trailing stop
+                trailing_stop = entry_price * 1.015  # 1.5% above entry
+                if current_price >= trailing_stop:
+                    position['exit_plan']['stop_loss'] = trailing_stop
+                    return {"action": "update_stop", "new_stop": trailing_stop, "reason": "Tight trailing stop at 2% profit"}
+            elif unrealized_pnl_percent >= 0.01:  # 1% profit - normal trailing stop
+                trailing_stop = entry_price * 1.02  # 2% above entry
+                if current_price >= trailing_stop:
+                    position['exit_plan']['stop_loss'] = trailing_stop
+                    return {"action": "update_stop", "new_stop": trailing_stop, "reason": "Normal trailing stop at 1% profit"}
         
         elif direction == 'short':
             unrealized_pnl_percent = (entry_price - current_price) / entry_price
             
-            if unrealized_pnl_percent >= 0.01:  # 1% profit
+            # Enhanced Partial Profit Taking for shorts
+            if unrealized_pnl_percent >= 0.03:  # 3% profit - take 75%
+                take_profit_percent = 0.75
+                return {"action": "partial_close", "percent": take_profit_percent, "reason": "Enhanced profit taking at 3% gain (75%)"}
+            elif unrealized_pnl_percent >= 0.02:  # 2% profit - take 50%
                 take_profit_percent = 0.5
-                return {"action": "partial_close", "percent": take_profit_percent, "reason": "Partial profit taking at 1% gain"}
+                return {"action": "partial_close", "percent": take_profit_percent, "reason": "Enhanced profit taking at 2% gain (50%)"}
+            elif unrealized_pnl_percent >= 0.01:  # 1% profit - take 25%
+                take_profit_percent = 0.25
+                return {"action": "partial_close", "percent": take_profit_percent, "reason": "Enhanced profit taking at 1% gain (25%)"}
             
-            trailing_stop = entry_price * 0.98
-            if current_price <= trailing_stop:
-                position['exit_plan']['stop_loss'] = trailing_stop
-                return {"action": "update_stop", "new_stop": trailing_stop, "reason": "Trailing stop updated"}
+            # Dynamic Trailing Stop for shorts
+            if unrealized_pnl_percent >= 0.02:  # 2% profit - tighter trailing stop
+                trailing_stop = entry_price * 0.985  # 1.5% below entry
+                if current_price <= trailing_stop:
+                    position['exit_plan']['stop_loss'] = trailing_stop
+                    return {"action": "update_stop", "new_stop": trailing_stop, "reason": "Tight trailing stop at 2% profit"}
+            elif unrealized_pnl_percent >= 0.01:  # 1% profit - normal trailing stop
+                trailing_stop = entry_price * 0.98  # 2% below entry
+                if current_price <= trailing_stop:
+                    position['exit_plan']['stop_loss'] = trailing_stop
+                    return {"action": "update_stop", "new_stop": trailing_stop, "reason": "Normal trailing stop at 1% profit"}
         
         return exit_decision
 
@@ -925,8 +951,107 @@ class PortfolioManager:
                 return 0.4  # Other markets: SHORT >40% volume
         return 0.8  # Default threshold
 
+    def calculate_volume_quality_score(self, coin: str) -> float:
+        """Calculate volume quality score (0-100) based on Config thresholds"""
+        try:
+            # Import market data to get indicators
+            from alpha_arena_deepseek import RealMarketData
+            market_data = RealMarketData()
+            indicators_3m = market_data.get_technical_indicators(coin, '3m')
+            
+            if 'error' in indicators_3m:
+                return 0.0
+            
+            current_volume = indicators_3m.get('volume', 0)
+            avg_volume = indicators_3m.get('avg_volume', 0)
+            
+            if avg_volume <= 0:
+                return 0.0
+            
+            volume_ratio = current_volume / avg_volume
+            
+            # Calculate score based on Config thresholds
+            if volume_ratio >= Config.VOLUME_QUALITY_THRESHOLDS['excellent']:
+                return 90.0
+            elif volume_ratio >= Config.VOLUME_QUALITY_THRESHOLDS['good']:
+                return 75.0
+            elif volume_ratio >= Config.VOLUME_QUALITY_THRESHOLDS['fair']:
+                return 60.0
+            elif volume_ratio >= Config.VOLUME_QUALITY_THRESHOLDS['poor']:
+                return 40.0
+            else:
+                return 20.0
+                
+        except Exception as e:
+            print(f"⚠️ Volume quality score calculation error for {coin}: {e}")
+            return 0.0
+
+    def detect_market_regime_overall(self) -> str:
+        """Detect overall market regime across all coins"""
+        try:
+            # Import market data to get indicators
+            from alpha_arena_deepseek import RealMarketData
+            market_data = RealMarketData()
+            
+            bullish_count = 0
+            bearish_count = 0
+            
+            for coin in market_data.available_coins:
+                indicators_4h = market_data.get_technical_indicators(coin, '4h')
+                if 'error' in indicators_4h:
+                    continue
+                
+                price = indicators_4h.get('current_price')
+                ema20 = indicators_4h.get('ema_20')
+                
+                if price > ema20:
+                    bullish_count += 1
+                else:
+                    bearish_count += 1
+            
+            if bullish_count >= 4:  # At least 4 coins bullish
+                return "BULLISH"
+            elif bearish_count >= 4:  # At least 4 coins bearish
+                return "BEARISH"
+            else:
+                return "NEUTRAL"
+                
+        except Exception as e:
+            print(f"⚠️ Market regime detection error: {e}")
+            return "NEUTRAL"
+
+    def should_enhance_short_sizing(self, coin: str) -> bool:
+        """Check if short position should be enhanced (%15 daha büyük)"""
+        try:
+            # Import market data to get indicators
+            from alpha_arena_deepseek import RealMarketData
+            market_data = RealMarketData()
+            
+            indicators_3m = market_data.get_technical_indicators(coin, '3m')
+            indicators_4h = market_data.get_technical_indicators(coin, '4h')
+            
+            if 'error' in indicators_3m or 'error' in indicators_4h:
+                return False
+            
+            # Enhanced short conditions:
+            # 1. 3m RSI > 70 (aşırı alım)
+            rsi_3m = indicators_3m.get('rsi_14', 50)
+            # 2. Volume > 1.5x average
+            volume_ratio = indicators_3m.get('volume', 0) / indicators_3m.get('avg_volume', 1)
+            # 3. 4h trend bearish
+            price_4h = indicators_4h.get('current_price')
+            ema20_4h = indicators_4h.get('ema_20')
+            trend_bearish = price_4h < ema20_4h
+            
+            # All conditions must be met
+            return rsi_3m > 70 and volume_ratio > 1.5 and trend_bearish
+            
+        except Exception as e:
+            print(f"⚠️ Enhanced short sizing check error for {coin}: {e}")
+            return False
+
     def execute_decision(self, decisions: Dict[str, Dict], current_prices: Dict[str, float]):
-        """Executes trading decisions from AI, incorporating dynamic sizing."""
+        """Executes trading decisions from AI, incorporating dynamic sizing and enhanced features."""
         print("\n⚡ EXECUTING AI DECISIONS...")
         if not isinstance(decisions, dict): print(f"❌ Invalid decisions format: {type(decisions)}"); return
 
@@ -955,27 +1080,45 @@ class PortfolioManager:
                     leverage = Config.MAX_LEVERAGE
                 if not (0.0 <= confidence <= 1.0): confidence = 0.5 # Clamp confidence to 0.0-1.0
 
-                # --- Advanced Risk Management ---
+                # --- Enhanced Trading Features ---
+                # 1. Volume Quality Scoring
+                volume_quality_score = self.calculate_volume_quality_score(coin)
+                confidence = min(1.0, confidence + (volume_quality_score / 1000))  # Add small confidence boost
+                
+                # 2. Market Regime Position Sizing
+                market_regime = self.detect_market_regime_overall()
+                market_regime_multiplier = Config.MARKET_REGIME_MULTIPLIERS.get(market_regime, 1.0)
+                
+                # 3. Enhanced Short Sizing (%15 daha büyük)
+                if signal == 'sell_to_enter':
+                    # Check enhanced short conditions
+                    if self.should_enhance_short_sizing(coin):
+                        print(f"📈 ENHANCED SHORT: {coin} için %15 daha büyük position")
+                        if 'quantity_usd' in trade:
+                            trade['quantity_usd'] *= Config.SHORT_ENHANCEMENT_MULTIPLIER
+                
+                # 4. Coin Bazlı Dynamic Stop-Loss
                 stop_loss = trade.get('stop_loss')
                 try:
                     stop_loss = float(stop_loss) if stop_loss is not None else None
                 except (ValueError, TypeError):
                     stop_loss = None
                 
-                # Get market regime for dynamic risk and volume thresholds
-                market_regime = "BEARISH"  # Default to bearish for safety
-                try:
-                    # Try to get actual market regime from AlphaArenaDeepSeek
-                    from alpha_arena_deepseek import AlphaArenaDeepSeek
-                    arena = AlphaArenaDeepSeek()
-                    market_regime = arena.detect_market_regime(coin)
-                except:
-                    pass
+                # Apply dynamic stop-loss multiplier
+                if stop_loss is not None:
+                    stop_loss_multiplier = Config.COIN_SPECIFIC_STOP_LOSS_MULTIPLIERS.get(coin, 1.0)
+                    if signal == 'buy_to_enter':
+                        stop_loss = current_price - ((current_price - stop_loss) * stop_loss_multiplier)
+                    else:  # sell_to_enter
+                        stop_loss = current_price + ((stop_loss - current_price) * stop_loss_multiplier)
+                    print(f"📊 Dynamic Stop-Loss: {coin} için {stop_loss_multiplier}x multiplier uygulandı")
                 
                 # Use AI's proposed position size directly (quantity_usd is margin)
                 # Convert margin to notional using leverage
                 proposed_margin = trade.get('quantity_usd', 0)
                 if proposed_margin > 0:
+                    # Apply market regime multiplier
+                    proposed_margin *= market_regime_multiplier
                     calculated_notional_usd = proposed_margin * leverage
                     print(f"   AI proposed sizing: ${calculated_notional_usd:.2f} notional (${proposed_margin:.2f} margin)")
                 else:
@@ -993,6 +1136,8 @@ class PortfolioManager:
                     max_notional = self.max_trade_notional_usd
                     calculated_notional_usd = min_notional + (max_notional - min_notional) * confidence
                     calculated_notional_usd = min(calculated_notional_usd, self.max_trade_notional_usd)
+                    # Apply market regime multiplier
+                    calculated_notional_usd *= market_regime_multiplier
                     print(f"   Confidence-based sizing: ${calculated_notional_usd:.2f} notional (min: ${min_notional})")
                 
                 # Check risk management constraints with dynamic limits
@@ -1036,7 +1181,7 @@ class PortfolioManager:
                     'entry_time': datetime.now().isoformat(), 'current_price': current_price, 'unrealized_pnl': 0.0,
                     'notional_usd': notional_usd, 'margin_usd': margin_usd, 'leverage': leverage,
                     'liquidation_price': estimated_liq_price, 'confidence': confidence,
-                    'exit_plan': { 'profit_target': trade.get('profit_target'), 'stop_loss': trade.get('stop_loss'), 'invalidation_condition': trade.get('invalidation_condition') },
+                    'exit_plan': { 'profit_target': trade.get('profit_target'), 'stop_loss': stop_loss, 'invalidation_condition': trade.get('invalidation_condition') },
                     'risk_usd': actual_risk_usd,
                     'sl_oid': -1, 'tp_oid': -1, 'entry_oid': -1, 'wait_for_fill': False
                 }
@@ -1229,6 +1374,63 @@ class AlphaArenaDeepSeek:
         except Exception as e:
             print(f"⚠️ Volume confidence calculation error for {coin}: {e}")
             return 0.0
+
+    def calculate_volume_quality_score(self, coin: str) -> float:
+        """Calculate volume quality score (0-100) based on Config thresholds"""
+        try:
+            indicators_3m = self.market_data.get_technical_indicators(coin, '3m')
+            if 'error' in indicators_3m:
+                return 0.0
+            
+            current_volume = indicators_3m.get('volume', 0)
+            avg_volume = indicators_3m.get('avg_volume', 0)
+            
+            if avg_volume <= 0:
+                return 0.0
+            
+            volume_ratio = current_volume / avg_volume
+            
+            # Calculate score based on Config thresholds
+            if volume_ratio >= Config.VOLUME_QUALITY_THRESHOLDS['excellent']:
+                return 90.0
+            elif volume_ratio >= Config.VOLUME_QUALITY_THRESHOLDS['good']:
+                return 75.0
+            elif volume_ratio >= Config.VOLUME_QUALITY_THRESHOLDS['fair']:
+                return 60.0
+            elif volume_ratio >= Config.VOLUME_QUALITY_THRESHOLDS['poor']:
+                return 40.0
+            else:
+                return 20.0
+                
+        except Exception as e:
+            print(f"⚠️ Volume quality score calculation error for {coin}: {e}")
+            return 0.0
+
+    def should_enhance_short_sizing(self, coin: str) -> bool:
+        """Check if short position should be enhanced (%15 daha büyük)"""
+        try:
+            indicators_3m = self.market_data.get_technical_indicators(coin, '3m')
+            indicators_4h = self.market_data.get_technical_indicators(coin, '4h')
+            
+            if 'error' in indicators_3m or 'error' in indicators_4h:
+                return False
+            
+            # Enhanced short conditions:
+            # 1. 3m RSI > 70 (aşırı alım)
+            rsi_3m = indicators_3m.get('rsi_14', 50)
+            # 2. Volume > 1.5x average
+            volume_ratio = indicators_3m.get('volume', 0) / indicators_3m.get('avg_volume', 1)
+            # 3. 4h trend bearish
+            price_4h = indicators_4h.get('current_price')
+            ema20_4h = indicators_4h.get('ema_20')
+            trend_bearish = price_4h < ema20_4h
+            
+            # All conditions must be met
+            return rsi_3m > 70 and volume_ratio > 1.5 and trend_bearish
+            
+        except Exception as e:
+            print(f"⚠️ Enhanced short sizing check error for {coin}: {e}")
+            return False
 
     def generate_advanced_exit_plan(self, coin: str, direction: str, entry_price: float) -> Dict[str, Any]:
         """Generate advanced exit plan with momentum failure detection (Nof1AI Blog Style)"""
