@@ -26,7 +26,6 @@ class Config:
     
     # Trading Settings
     INITIAL_BALANCE: float = float(os.getenv('INITIAL_BALANCE', '200.0'))
-    MAX_TRADE_NOTIONAL_USD: float = float(os.getenv('MAX_TRADE_NOTIONAL_USD', '200.0'))  # Nof1ai blog: $12k-$68k positions
     CYCLE_INTERVAL_MINUTES: int = int(os.getenv('CYCLE_INTERVAL_MINUTES', '2'))
     
     # Risk Management
@@ -68,12 +67,10 @@ class Config:
     
     # Minimum Position Size Configuration (Margin-based)
     MIN_POSITION_MARGIN_USD: float = float(os.getenv('MIN_POSITION_MARGIN_USD', '10.0'))  # Minimum $10 margin ile pozisyon açılabilir
-    MIN_POSITION_NOTIONAL_USD: float = float(os.getenv('MIN_POSITION_NOTIONAL_USD', '10.0'))  # Minimum $10 pozisyon (backward compatibility)
     MIN_POSITION_CLEANUP_THRESHOLD: float = float(os.getenv('MIN_POSITION_CLEANUP_THRESHOLD', '5.0'))  # $5 altındakileri temizle
     
     # Partial Profit Taking Configuration (Margin-based)
     MIN_PARTIAL_PROFIT_MARGIN_REMAINING_USD: float = float(os.getenv('MIN_PARTIAL_PROFIT_MARGIN_REMAINING_USD', '10.0'))  # Minimum $10 margin kalacak şekilde satış
-    MIN_PARTIAL_PROFIT_REMAINING_USD: float = float(os.getenv('MIN_PARTIAL_PROFIT_REMAINING_USD', '10.0'))  # Minimum $10 kalacak şekilde satış (backward compatibility)
     
     @classmethod
     def validate_config(cls) -> bool:
@@ -87,9 +84,6 @@ class Config:
         # Validate numeric values
         if cls.INITIAL_BALANCE <= 0:
             errors.append("INITIAL_BALANCE must be positive")
-        
-        if cls.MAX_TRADE_NOTIONAL_USD <= 0:
-            errors.append("MAX_TRADE_NOTIONAL_USD must be positive")
         
         if cls.CYCLE_INTERVAL_MINUTES < 1:
             errors.append("CYCLE_INTERVAL_MINUTES must be at least 1")
@@ -123,7 +117,6 @@ class Config:
         logging.info(f"  DEBUG: {cls.DEBUG}")
         logging.info(f"  LOG_LEVEL: {cls.LOG_LEVEL}")
         logging.info(f"  INITIAL_BALANCE: ${cls.INITIAL_BALANCE}")
-        logging.info(f"  MAX_TRADE_NOTIONAL_USD: ${cls.MAX_TRADE_NOTIONAL_USD}")
         logging.info(f"  CYCLE_INTERVAL_MINUTES: {cls.CYCLE_INTERVAL_MINUTES}")
         logging.info(f"  MAX_LEVERAGE: {cls.MAX_LEVERAGE}x")
         logging.info(f"  MIN_CONFIDENCE: {cls.MIN_CONFIDENCE}")

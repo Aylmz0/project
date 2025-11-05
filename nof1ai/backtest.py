@@ -443,7 +443,8 @@ class AdvancedRiskManager:
     
     def should_enter_trade(self, symbol: str, current_positions: Dict, current_prices: Dict, 
                           confidence: float, proposed_notional: float, current_balance: float = 200.0, 
-                          ai_risk_usd: float = None, dynamic_risk_limit: float = None) -> Dict[str, Any]:
+                          ai_risk_usd: float = None, dynamic_risk_limit: float = None, 
+                          coin_risk_limit: float = None) -> Dict[str, Any]:
         """Determine if a trade should be entered based on risk parameters with two-level control."""
         decision = {
             'should_enter': True,
@@ -473,6 +474,14 @@ class AdvancedRiskManager:
             total_risk_limit = current_balance * 0.90  # 90% of available cash
             decision['reason'] = f'Using fallback 90% total limit: ${total_risk_limit:.2f}'
         
+        # LEVEL 2: Individual coin risk limit (25% of available cash)
+        if coin_risk_limit is not None:
+            coin_risk_limit = coin_risk_limit
+            decision['reason'] += f', Using dynamic coin limit: ${coin_risk_limit:.2f}'
+        else:
+            coin_risk_limit = current_balance * 0.25  # 25% of available cash per coin
+            decision['reason'] += f', Using fallback 25% coin limit: ${coin_risk_limit:.2f}'
+        
         # Calculate current total margin used
         current_total_margin = sum(pos.get('margin_usd', 0) for pos in current_positions.values())
         
@@ -484,9 +493,6 @@ class AdvancedRiskManager:
             decision['should_enter'] = False
             decision['reason'] = f'Total risk limit exceeded: ${total_margin_after_trade:.2f} > ${total_risk_limit:.2f}'
             return decision
-        
-        # LEVEL 2: Individual coin risk limit (25% of available cash)
-        coin_risk_limit = current_balance * 0.25  # 25% of available cash per coin
         
         # Check if proposed margin exceeds coin risk limit
         if proposed_margin > coin_risk_limit:

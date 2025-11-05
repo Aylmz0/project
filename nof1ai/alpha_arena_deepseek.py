@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any
 import warnings
 import traceback # For detailed error logging
+import threading
 
 # Import new utility modules
 from config import Config
@@ -64,17 +65,18 @@ CRITICAL RULES:
 - Trade systematically using only the numerical data provided
 - Infer market narratives from time-series data, not external news
 - Always specify complete exit plans: profit_target, stop_loss, invalidation_condition
-- Use fixed risk sizing: Maximum risk per trade is 25% of portfolio ($50 on $200)
+- Use DYNAMIC risk sizing: Maximum risk per trade is 25% of available cash (scales with portfolio)
 - Use leverage up to 10x for calculated exposure
 - Minimum confidence threshold: 0.5 (optimized for more setups)
 - Maximum positions: 5
 
 RISK MANAGEMENT (NOF1AI ADVANCED RISK PROFILE):
-- Portfolio risk limit: 25% ($50 on $200) - Fixed maximum risk per trade
-- Position sizing based on confidence:
-  - High Confidence (0.7-0.8): $40-50 risk_usd
-  - Medium Confidence (0.6-0.7): $30-40 risk_usd  
-  - Low Confidence (0.4-0.6): $20-30 risk_usd
+- Portfolio risk limit: 90% of available cash (dynamic - scales with portfolio)
+- Coin risk limit: 25% of available cash per coin (dynamic - scales with portfolio)
+- Position sizing based on confidence and available cash:
+  - High Confidence (0.7-0.8): 20-25% of available cash
+  - Medium Confidence (0.6-0.7): 15-20% of available cash  
+  - Low Confidence (0.4-0.6): 10-15% of available cash
 - Maximum positions: 5 out of 6 coins
 - Aim for Risk/Reward ratio of at least 1:1.3
 - Use 4-hour ATR for stop-loss distances
@@ -574,12 +576,21 @@ class RealMarketData:
 class PortfolioManager:
     """Manages the portfolio state, positions, and history."""
 
-    def __init__(self, initial_balance: float = 200.0):
-        self.initial_balance = initial_balance
+    def __init__(self, initial_balance: float = None):
+        # Dinamik initial balance - eğer verilmediyse gerçek balance'dan al veya $200 kullan
+        if initial_balance is None:
+            # Önce saved state'den dene, yoksa Config'den al
+            saved_state = safe_file_read("portfolio_state.json", default_data={})
+            if 'initial_balance' in saved_state:
+                self.initial_balance = saved_state['initial_balance']
+            else:
+                self.initial_balance = Config.INITIAL_BALANCE
+        else:
+            self.initial_balance = initial_balance
+            
         self.state_file = "portfolio_state.json"; self.history_file = "trade_history.json"
         self.override_file = "manual_override.json"; self.cycle_history_file = "cycle_history.json"
-        self.max_cycle_history = 50; self.max_trade_notional_usd = Config.MAX_TRADE_NOTIONAL_USD # Use config value
-        self.maintenance_margin_rate = 0.01
+        self.max_cycle_history = 50; self.maintenance_margin_rate = 0.01
 
         self.current_balance = self.initial_balance; self.positions = {}
         self.trade_history = self.load_trade_history() # Load first
@@ -1029,26 +1040,29 @@ class PortfolioManager:
     def calculate_dynamic_risk_limit(self) -> float:
         """Calculate dynamic risk limit based on available cash (90% of available cash)"""
         total_risk_percentage = 0.90  # 90% of available cash
-        min_risk = 10.0  # Minimum $10 risk limit
-        max_risk = 100.0  # Maximum $100 risk limit
+        # Dinamik minimum/maximum - current_balance'a göre scale et
+        min_risk = self.current_balance * 0.05  # %5 minimum
+        max_risk = self.current_balance * 0.90  # %90 maximum (güvenlik için)
         
         # Use available cash instead of total portfolio value
         dynamic_limit = self.current_balance * total_risk_percentage
+        print(f"📊 Dynamic risk limit calculation: ${self.current_balance:.2f} × 90% = ${dynamic_limit:.2f}")
         return max(min_risk, min(max_risk, dynamic_limit))
     
     def calculate_coin_risk_limit(self) -> float:
         """Calculate risk limit per individual coin (25% of available cash)"""
         coin_risk_percentage = 0.25   # 25% of available cash per coin
-        min_coin_risk = 5.0  # Minimum $5 per coin
-        max_coin_risk = 50.0  # Maximum $50 per coin
+        # Dinamik minimum/maximum - current_balance'a göre scale et
+        min_coin_risk = self.current_balance * 0.025  # %2.5 minimum per coin
+        max_coin_risk = self.current_balance * 0.25   # %25 maximum per coin
         
         coin_limit = self.current_balance * coin_risk_percentage
         return max(min_coin_risk, min(max_coin_risk, coin_limit))
 
     def calculate_confidence_based_margin(self, confidence: float, available_cash: float) -> float:
         """Calculate margin based on confidence level and available cash (simple formula)"""
-        # Max margin = 25% of portfolio ($50 on $200)
-        max_margin = min(available_cash * 0.25, 50.0)
+        # Max margin = 25% of portfolio (dinamik)
+        max_margin = available_cash * 0.25
         
         # Simple formula: margin = max_margin * confidence
         margin = max_margin * confidence
@@ -1253,6 +1267,8 @@ class PortfolioManager:
                 
                 # Check risk management constraints with dynamic limits
                 dynamic_risk_limit = self.calculate_dynamic_risk_limit()
+                coin_risk_limit = self.calculate_coin_risk_limit()
+                
                 risk_decision = self.risk_manager.should_enter_trade(
                     symbol=coin,
                     current_positions=self.positions,
@@ -1261,7 +1277,8 @@ class PortfolioManager:
                     proposed_notional=calculated_notional_usd,
                     current_balance=self.current_balance,
                     ai_risk_usd=trade.get('risk_usd'),  # Pass AI's risk_usd value
-                    dynamic_risk_limit=dynamic_risk_limit  # Pass dynamic risk limit
+                    dynamic_risk_limit=dynamic_risk_limit,  # Pass dynamic risk limit
+                    coin_risk_limit=coin_risk_limit  # Pass coin-specific risk limit
                 )
                 
                 if not risk_decision['should_enter']:
@@ -1340,6 +1357,8 @@ class AlphaArenaDeepSeek:
         self.deepseek = DeepSeekAPI(api_key)
         self.risk_manager = AdvancedRiskManager()
         self.invocation_count = 0 # Track AI calls since bot start
+        self.tp_sl_timer = None
+        self.is_running = False
 
     def get_max_positions_for_cycle(self, cycle_number: int) -> int:
         """Cycle bazlı maximum pozisyon limiti - Yavaş başlama mekanizması"""
@@ -2309,8 +2328,60 @@ Current live positions & performance:"""
                 entry = pos.get('entry_price', 0.0); qty = pos.get('quantity', 0.0)
                 print(f"  {coin} ({direction} {leverage}x): {format_num(qty, 4)} units | Notional ${format_num(notional, 2)} | Entry: ${format_num(entry, 4)} | PnL: {pnl_sign}${format_num(pnl, 2)} | Liq Est: ${format_num(liq, 4)}")
 
+    def start_tp_sl_monitoring(self):
+        """Start TP/SL monitoring timer that runs every 1 minute"""
+        if self.tp_sl_timer and self.tp_sl_timer.is_alive():
+            print("ℹ️ TP/SL monitoring already running")
+            return
+        
+        self.is_running = True
+        self.tp_sl_timer = threading.Thread(target=self._tp_sl_monitoring_loop, daemon=True)
+        self.tp_sl_timer.start()
+        print("✅ TP/SL monitoring started (1 minute interval)")
+
+    def stop_tp_sl_monitoring(self):
+        """Stop TP/SL monitoring timer"""
+        self.is_running = False
+        if self.tp_sl_timer and self.tp_sl_timer.is_alive():
+            self.tp_sl_timer.join(timeout=5)
+            print("🛑 TP/SL monitoring stopped")
+        else:
+            print("ℹ️ TP/SL monitoring was not running")
+
+    def _tp_sl_monitoring_loop(self):
+        """Background thread that checks TP/SL every 1 minute"""
+        print("🔄 TP/SL monitoring loop started")
+        while self.is_running:
+            try:
+                # Get current prices
+                real_prices = self.market_data.get_all_real_prices()
+                valid_prices = {k: v for k, v in real_prices.items() if isinstance(v, (int, float)) and v > 0}
+                
+                if valid_prices:
+                    # Update portfolio prices
+                    self.portfolio.update_prices(valid_prices)
+                    
+                    # Check and execute TP/SL
+                    positions_closed = self.portfolio.check_and_execute_tp_sl(valid_prices)
+                    
+                    if positions_closed:
+                        print(f"⏰ 1-MINUTE TP/SL CHECK: Positions closed")
+                    else:
+                        print(f"⏰ 1-MINUTE TP/SL CHECK: No triggers")
+                else:
+                    print("⚠️ TP/SL monitoring: No valid prices available")
+                
+            except Exception as e:
+                print(f"❌ TP/SL monitoring error: {e}")
+            
+            # Wait 1 minute before next check
+            for _ in range(60):
+                if not self.is_running:
+                    break
+                time.sleep(1)
+
     def run_simulation(self, total_duration_hours: int = 168, cycle_interval_minutes: int = 2):
-        """Run the simulation with dynamic cycle frequency"""
+        """Run the simulation with dynamic cycle frequency and TP/SL monitoring"""
         print(f"🚀 ALPHA ARENA - DEEPSEEK INTEGRATION (V{VERSION})")
         print(f"💡 Simulating with ${format_num(self.portfolio.initial_balance, 2)} budget for {total_duration_hours} hours.")
         print(f"   Trading: {', '.join(self.market_data.available_coins)}")
@@ -2319,25 +2390,36 @@ Current live positions & performance:"""
         print(f"   Cycle History File: {self.portfolio.cycle_history_file}")
         print(f"   Override File Check: {self.portfolio.override_file}")
         print(f"   Dynamic Cycle Frequency: Enabled (2-4 minutes based on volatility)")
+        print(f"   TP/SL Monitoring: Enabled (1 minute interval)")
+
+        # Start TP/SL monitoring
+        self.start_tp_sl_monitoring()
 
         end_time = datetime.now() + timedelta(hours=total_duration_hours)
         start_cycle = len(self.portfolio.cycle_history) + 1
         print(f"   Resuming from Cycle {start_cycle}...")
         self.invocation_count = start_cycle - 1; current_cycle_number = start_cycle - 1
 
-        while datetime.now() < end_time:
-            current_cycle_number += 1; cycle_start_time = time.time()
-            
-            # Calculate dynamic cycle frequency
-            dynamic_cycle_interval = self.calculate_optimal_cycle_frequency()
-            print(f"🔄 Dynamic cycle frequency: {dynamic_cycle_interval} seconds ({dynamic_cycle_interval/60:.1f} minutes)")
-            
-            self.run_trading_cycle(current_cycle_number)
-            if datetime.now() >= end_time: break
-            elapsed_time = time.time() - cycle_start_time
-            sleep_time = max(0, dynamic_cycle_interval - elapsed_time)
-            print(f"\n⏳ Cycle {current_cycle_number} complete in {format_num(elapsed_time,2)}s. Next cycle in {format_num(sleep_time/60, 2)} mins... (Ctrl+C to stop)")
-            time.sleep(max(sleep_time, 0.5))
+        try:
+            while datetime.now() < end_time:
+                current_cycle_number += 1; cycle_start_time = time.time()
+                
+                # Calculate dynamic cycle frequency
+                dynamic_cycle_interval = self.calculate_optimal_cycle_frequency()
+                print(f"🔄 Dynamic cycle frequency: {dynamic_cycle_interval} seconds ({dynamic_cycle_interval/60:.1f} minutes)")
+                
+                self.run_trading_cycle(current_cycle_number)
+                if datetime.now() >= end_time: break
+                elapsed_time = time.time() - cycle_start_time
+                sleep_time = max(0, dynamic_cycle_interval - elapsed_time)
+                print(f"\n⏳ Cycle {current_cycle_number} complete in {format_num(elapsed_time,2)}s. Next cycle in {format_num(sleep_time/60, 2)} mins... (Ctrl+C to stop)")
+                time.sleep(max(sleep_time, 0.5))
+
+        except KeyboardInterrupt:
+            print("\n⏹️ Program stopped by user.")
+        finally:
+            # Stop TP/SL monitoring
+            self.stop_tp_sl_monitoring()
 
         print(f"\n{'='*80}\n🏁 SIMULATION COMPLETED\n{'='*80}"); self.show_status()
 
