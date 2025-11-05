@@ -1027,13 +1027,23 @@ class PortfolioManager:
         return min(base_risk, 60.0)  # Cap at $60 maximum risk
 
     def calculate_dynamic_risk_limit(self) -> float:
-        """Calculate dynamic risk limit based on current portfolio value (25% of portfolio)"""
-        risk_percentage = 0.25  # 25% of portfolio
+        """Calculate dynamic risk limit based on available cash (90% of available cash)"""
+        total_risk_percentage = 0.90  # 90% of available cash
         min_risk = 10.0  # Minimum $10 risk limit
         max_risk = 100.0  # Maximum $100 risk limit
         
-        dynamic_limit = self.total_value * risk_percentage
+        # Use available cash instead of total portfolio value
+        dynamic_limit = self.current_balance * total_risk_percentage
         return max(min_risk, min(max_risk, dynamic_limit))
+    
+    def calculate_coin_risk_limit(self) -> float:
+        """Calculate risk limit per individual coin (25% of available cash)"""
+        coin_risk_percentage = 0.25   # 25% of available cash per coin
+        min_coin_risk = 5.0  # Minimum $5 per coin
+        max_coin_risk = 50.0  # Maximum $50 per coin
+        
+        coin_limit = self.current_balance * coin_risk_percentage
+        return max(min_coin_risk, min(max_coin_risk, coin_limit))
 
     def calculate_confidence_based_margin(self, confidence: float, available_cash: float) -> float:
         """Calculate margin based on confidence level and available cash (simple formula)"""
@@ -1943,11 +1953,15 @@ REMEMBER: These are suggestions only. You make the final trading decisions based
         # Add historical context section
         trading_context = self.get_trading_context()
         
-        # Calculate current risk status - FIXED: Use margin_usd instead of risk_usd
+        # Calculate current risk status - FIXED: Use new two-level risk calculation
         total_margin_used = sum(pos.get('margin_usd', 0) for pos in self.portfolio.positions.values())
-        dynamic_risk_limit = self.portfolio.calculate_dynamic_risk_limit()
-        # FIX: Risk capacity should be based on available cash, not just dynamic limit
-        risk_capacity_remaining = min(dynamic_risk_limit - total_margin_used, self.portfolio.current_balance)
+        
+        # NEW: Two-level risk limits
+        total_risk_limit = self.portfolio.calculate_dynamic_risk_limit()  # 90% of available cash
+        coin_risk_limit = self.portfolio.calculate_coin_risk_limit()      # 25% of available cash per coin
+        
+        # Risk capacity calculation
+        risk_capacity_remaining = min(total_risk_limit - total_margin_used, self.portfolio.current_balance)
         risk_capacity_remaining = max(0, risk_capacity_remaining)
         current_positions_count = len(self.portfolio.positions)
         max_positions = 5
@@ -1961,8 +1975,13 @@ Recent Trading Decisions: {json.dumps(trading_context['recent_decisions'], inden
 {'='*20} REAL-TIME RISK STATUS {'='*20}
 
 CURRENT RISK STATUS: {current_positions_count} positions open, ${format_num(total_margin_used, 2)} margin used, ${format_num(risk_capacity_remaining, 2)} risk capacity remaining
-MAX POSITIONS: {max_positions}, MAX RISK PER TRADE: ${format_num(dynamic_risk_limit, 2)} (25% of ${format_num(self.portfolio.total_value, 2)} portfolio)
-IMPORTANT: When opening new positions, ensure total risk does not exceed ${format_num(dynamic_risk_limit, 2)} and position count does not exceed {max_positions}.
+TOTAL RISK LIMIT: ${format_num(total_risk_limit, 2)} (90% of ${format_num(self.portfolio.current_balance, 2)} available cash)
+COIN RISK LIMIT: ${format_num(coin_risk_limit, 2)} (25% of ${format_num(self.portfolio.current_balance, 2)} available cash per coin)
+MAX POSITIONS: {max_positions}
+IMPORTANT: When opening new positions, ensure:
+- Total margin used does not exceed ${format_num(total_risk_limit, 2)}
+- Individual coin margin does not exceed ${format_num(coin_risk_limit, 2)}
+- Position count does not exceed {max_positions}
 
 {'='*20} HERE IS YOUR ACCOUNT INFORMATION & PERFORMANCE {'='*20}
 
