@@ -32,7 +32,7 @@ class Config:
     # Risk Management
     MAX_LEVERAGE: int = int(os.getenv('MAX_LEVERAGE', '20'))  # Nof1ai blog: 20x leverage for medium risk
     MIN_CONFIDENCE: float = float(os.getenv('MIN_CONFIDENCE', '0.4'))  # Nof1ai blog: medium risk
-    MAX_POSITIONS: int = int(os.getenv('MAX_POSITIONS', '4'))  # Nof1ai blog: 2-3 positions
+    MAX_POSITIONS: int = int(os.getenv('MAX_POSITIONS', '5'))  # Nof1ai blog: 2-3 positions, but system uses 5
     
     # Risk Level Configuration
     RISK_LEVEL: str = os.getenv('RISK_LEVEL', 'medium').lower()
@@ -58,6 +58,22 @@ class Config:
         'DOGE': 1.0,  # Daha agresif stop (volatile)
         'JASMY': 1.0  # Daha agresif stop (volatile)
     }
+    
+    # Dynamic Confidence-Based Position Sizing
+    CONFIDENCE_BASED_RISK_PERCENTAGES: dict = {
+        'low': (0.10, 0.15),      # %10-15 risk (max margin'in)
+        'medium': (0.15, 0.20),   # %15-20 risk  
+        'high': (0.20, 0.25)      # %20-25 risk
+    }
+    
+    # Minimum Position Size Configuration (Margin-based)
+    MIN_POSITION_MARGIN_USD: float = float(os.getenv('MIN_POSITION_MARGIN_USD', '10.0'))  # Minimum $10 margin ile pozisyon açılabilir
+    MIN_POSITION_NOTIONAL_USD: float = float(os.getenv('MIN_POSITION_NOTIONAL_USD', '10.0'))  # Minimum $10 pozisyon (backward compatibility)
+    MIN_POSITION_CLEANUP_THRESHOLD: float = float(os.getenv('MIN_POSITION_CLEANUP_THRESHOLD', '5.0'))  # $5 altındakileri temizle
+    
+    # Partial Profit Taking Configuration (Margin-based)
+    MIN_PARTIAL_PROFIT_MARGIN_REMAINING_USD: float = float(os.getenv('MIN_PARTIAL_PROFIT_MARGIN_REMAINING_USD', '10.0'))  # Minimum $10 margin kalacak şekilde satış
+    MIN_PARTIAL_PROFIT_REMAINING_USD: float = float(os.getenv('MIN_PARTIAL_PROFIT_REMAINING_USD', '10.0'))  # Minimum $10 kalacak şekilde satış (backward compatibility)
     
     @classmethod
     def validate_config(cls) -> bool:

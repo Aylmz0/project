@@ -124,7 +124,6 @@ DECISIONS
   "XRP": {
     "signal": "buy_to_enter",
     "leverage": 10,
-    "quantity_usd": 50, /* This is MARGIN */
     "confidence": 0.75,
     "profit_target": 0.56,
     "stop_loss": 0.48,
@@ -134,14 +133,32 @@ DECISIONS
   "SOL": {
     "signal": "sell_to_enter",
     "leverage": 10,
-    "quantity_usd": 40,
-    "confidence": 0.65,
+    "confidence": 0.75,
     "profit_target": 185.0,
     "stop_loss": 198.0,
-    "risk_usd": 35.0,
+    "risk_usd": 45.0,
     "invalidation_condition": "If 4h price closes above 4h EMA20"
   },
-  "ADA": { "signal": "hold" }
+  "ADA": {
+    "signal": "buy_to_enter",
+    "leverage": 10,
+    "confidence": 0.75,
+    "profit_target": 0.52,
+    "stop_loss": 0.48,
+    "risk_usd": 45.0,
+    "invalidation_condition": "If 4h price closes below 4h EMA20"
+  },
+  "DOGE": {
+    "signal": "sell_to_enter",
+    "leverage": 10,
+    "confidence": 0.75,
+    "profit_target": 0.145,
+    "stop_loss": 0.165,
+    "risk_usd": 45.0,
+    "invalidation_condition": "If 4h price closes above 4h EMA20"
+  },
+  "LINK": { "signal": "hold" },
+  "JASMY": { "signal": "hold" }
 }
 
 Remember: You are a systematic trading model. Make principled decisions based on quantitative data and advanced technical analysis."""
@@ -859,16 +876,19 @@ class PortfolioManager:
         if direction == 'long':
             unrealized_pnl_percent = (current_price - entry_price) / entry_price
             
-            # Enhanced Partial Profit Taking - Dynamic percentages based on profit level
+            # Enhanced Partial Profit Taking - Dynamic percentages with minimum limit check
             if unrealized_pnl_percent >= 0.03:  # 3% profit - take 75%
                 take_profit_percent = 0.75
-                return {"action": "partial_close", "percent": take_profit_percent, "reason": "Enhanced profit taking at 3% gain (75%)"}
+                adjusted_percent = self._adjust_partial_sale_for_min_limit(position, take_profit_percent)
+                return {"action": "partial_close", "percent": adjusted_percent, "reason": f"Enhanced profit taking at 3% gain ({adjusted_percent*100:.0f}%)"}
             elif unrealized_pnl_percent >= 0.02:  # 2% profit - take 50%
                 take_profit_percent = 0.5
-                return {"action": "partial_close", "percent": take_profit_percent, "reason": "Enhanced profit taking at 2% gain (50%)"}
+                adjusted_percent = self._adjust_partial_sale_for_min_limit(position, take_profit_percent)
+                return {"action": "partial_close", "percent": adjusted_percent, "reason": f"Enhanced profit taking at 2% gain ({adjusted_percent*100:.0f}%)"}
             elif unrealized_pnl_percent >= 0.01:  # 1% profit - take 25%
                 take_profit_percent = 0.25
-                return {"action": "partial_close", "percent": take_profit_percent, "reason": "Enhanced profit taking at 1% gain (25%)"}
+                adjusted_percent = self._adjust_partial_sale_for_min_limit(position, take_profit_percent)
+                return {"action": "partial_close", "percent": adjusted_percent, "reason": f"Enhanced profit taking at 1% gain ({adjusted_percent*100:.0f}%)"}
             
             # Dynamic Trailing Stop based on profit level
             if unrealized_pnl_percent >= 0.02:  # 2% profit - tighter trailing stop
@@ -910,6 +930,84 @@ class PortfolioManager:
         
         return exit_decision
 
+    def _execute_new_positions_only(self, decisions: Dict, valid_prices: Dict, cycle_number: int):
+        """Execute only new position entries after AI close_position signal"""
+        print("🔄 Executing new positions only (after close_position signal)")
+        
+        max_positions = 5  # Fixed maximum positions
+        current_positions = len(self.positions)
+        
+        decisions_to_execute = {}
+        for coin, trade in decisions.items():
+            if not isinstance(trade, dict):
+                continue
+                
+            signal = trade.get('signal')
+            if signal in ['buy_to_enter', 'sell_to_enter']:
+                # Apply position limit
+                if current_positions >= max_positions:
+                    print(f"⚠️ Position limit reached (max {max_positions} positions). Skipping {coin} entry.")
+                    continue
+                current_positions += 1
+                
+                decisions_to_execute[coin] = trade
+
+        if decisions_to_execute:
+            self.execute_decision(decisions_to_execute, valid_prices)
+
+    def _execute_normal_decisions(self, decisions: Dict, valid_prices: Dict, cycle_number: int, positions_closed_by_tp_sl: bool):
+        """Execute normal AI decisions with partial profit active"""
+        print("🔄 Executing normal AI decisions (partial profit active)")
+        
+        max_positions = 5  # Fixed maximum positions
+        current_positions = len(self.positions)
+        
+        decisions_to_execute = {}
+        for coin, trade in decisions.items():
+            if not isinstance(trade, dict):
+                continue
+                
+            signal = trade.get('signal')
+            if signal in ['buy_to_enter', 'sell_to_enter']:
+                # Apply position limit
+                if current_positions >= max_positions:
+                    print(f"⚠️ Position limit reached (max {max_positions} positions). Skipping {coin} entry.")
+                    continue
+                current_positions += 1
+                
+                decisions_to_execute[coin] = trade
+            else:
+                # Execute all other decisions (hold, close_position)
+                decisions_to_execute[coin] = trade
+
+        if decisions_to_execute:
+            self.execute_decision(decisions_to_execute, valid_prices)
+
+    def _adjust_partial_sale_for_min_limit(self, position: Dict, proposed_percent: float) -> float:
+        """Adjust partial sale percentage to ensure minimum $10 remains after sale"""
+        from config import Config
+        
+        current_margin = position.get('margin_usd', 0)
+        min_remaining = Config.MIN_PARTIAL_PROFIT_REMAINING_USD  # $10 minimum margin
+        
+        if current_margin <= min_remaining:
+            # Position already at or below minimum, don't sell
+            return 0.0
+        
+        # Calculate remaining margin after proposed sale
+        remaining_after_proposed = current_margin * (1 - proposed_percent)
+        
+        if remaining_after_proposed >= min_remaining:
+            # Proposed sale keeps us above minimum, use as-is
+            return proposed_percent
+        else:
+            # Adjust sale to leave exactly $10 margin remaining
+            adjusted_sale_amount = current_margin - min_remaining
+            adjusted_percent = adjusted_sale_amount / current_margin
+            
+            print(f"📊 Adjusted partial sale: {proposed_percent*100:.0f}% → {adjusted_percent*100:.0f}% to maintain ${min_remaining} margin minimum")
+            return adjusted_percent
+
     def calculate_dynamic_risk(self, market_regime: str, confidence: float) -> float:
         """Calculate dynamic risk based on market regime and confidence"""
         base_risk = 50.0  # $50 base risk
@@ -936,6 +1034,20 @@ class PortfolioManager:
         
         dynamic_limit = self.total_value * risk_percentage
         return max(min_risk, min(max_risk, dynamic_limit))
+
+    def calculate_confidence_based_margin(self, confidence: float, available_cash: float) -> float:
+        """Calculate margin based on confidence level and available cash (simple formula)"""
+        # Max margin = 25% of portfolio ($50 on $200)
+        max_margin = min(available_cash * 0.25, 50.0)
+        
+        # Simple formula: margin = max_margin * confidence
+        margin = max_margin * confidence
+        
+        # Apply minimum margin limit ($10)
+        margin = max(margin, Config.MIN_POSITION_MARGIN_USD)
+        
+        print(f"📊 Confidence-based margin: ${margin:.2f} (confidence: {confidence:.2f}, max margin: ${max_margin:.2f})")
+        return margin
 
     def get_volume_threshold(self, market_regime: str, signal: str) -> float:
         """Get volume threshold based on market regime and signal type"""
@@ -1113,32 +1225,21 @@ class PortfolioManager:
                         stop_loss = current_price + ((stop_loss - current_price) * stop_loss_multiplier)
                     print(f"📊 Dynamic Stop-Loss: {coin} için {stop_loss_multiplier}x multiplier uygulandı")
                 
-                # Use AI's proposed position size directly (quantity_usd is margin)
+                # Use dynamic confidence-based margin calculation instead of AI's quantity_usd
+                # This ensures position sizing is ratio-based and dynamic
+                calculated_margin = self.calculate_confidence_based_margin(confidence, self.current_balance)
+                
+                # Apply market regime multiplier
+                calculated_margin *= market_regime_multiplier
+                
+                # MARGIN BAZLI MINIMUM KONTROLÜ
+                if calculated_margin < Config.MIN_POSITION_MARGIN_USD:
+                    print(f"⚠️ Calculated margin ${calculated_margin:.2f} below minimum ${Config.MIN_POSITION_MARGIN_USD}. Increasing to minimum.")
+                    calculated_margin = Config.MIN_POSITION_MARGIN_USD
+                
                 # Convert margin to notional using leverage
-                proposed_margin = trade.get('quantity_usd', 0)
-                if proposed_margin > 0:
-                    # Apply market regime multiplier
-                    proposed_margin *= market_regime_multiplier
-                    calculated_notional_usd = proposed_margin * leverage
-                    print(f"   AI proposed sizing: ${calculated_notional_usd:.2f} notional (${proposed_margin:.2f} margin)")
-                else:
-                    # Fallback to dynamic sizing based on confidence and risk level
-                    from config import Config
-                    risk_level = Config.RISK_LEVEL.lower()
-                    
-                    if risk_level == 'low':
-                        min_notional = 50.0
-                    elif risk_level == 'high':
-                        min_notional = 100.0
-                    else:  # medium
-                        min_notional = 75.0
-                        
-                    max_notional = self.max_trade_notional_usd
-                    calculated_notional_usd = min_notional + (max_notional - min_notional) * confidence
-                    calculated_notional_usd = min(calculated_notional_usd, self.max_trade_notional_usd)
-                    # Apply market regime multiplier
-                    calculated_notional_usd *= market_regime_multiplier
-                    print(f"   Confidence-based sizing: ${calculated_notional_usd:.2f} notional (min: ${min_notional})")
+                calculated_notional_usd = calculated_margin * leverage
+                print(f"   Dynamic confidence-based sizing: ${calculated_notional_usd:.2f} notional (${calculated_margin:.2f} margin)")
                 
                 # Check risk management constraints with dynamic limits
                 dynamic_risk_limit = self.calculate_dynamic_risk_limit()
@@ -1976,17 +2077,22 @@ Current live positions & performance:"""
         """Calculate optimal cycle frequency based on market volatility"""
         try:
             atr_values = []
+            # Tüm coin'leri dahil et (JASMY dahil)
             for coin in self.market_data.available_coins:
                 indicators_3m = self.market_data.get_technical_indicators(coin, '3m')
                 if 'error' not in indicators_3m:
                     atr = indicators_3m.get('atr_14', 0)
-                    if atr and atr > 0:
+                    # Küçük ATR değerlerini de dahil et (floating-point hassasiyetini düzelt)
+                    if atr is not None and atr > 1e-6:  # 0.000001'den büyük olanları al
                         atr_values.append(atr)
+                        print(f"📊 {coin} ATR: {atr:.6f}")
             
             if not atr_values:
-                return 120  # Default 2 minutes
+                print("⚠️ No valid ATR values found, using default 2 minutes")
+                return 120
             
             avg_atr = sum(atr_values) / len(atr_values)
+            print(f"📊 Average ATR: {avg_atr:.6f}")
             
             # Adjust cycle frequency based on volatility
             if avg_atr < 0.3:    # Düşük volatility
@@ -2102,41 +2208,51 @@ Current live positions & performance:"""
 
             # Execute AI decisions only if it's a valid dict and NOT empty AND no manual override was active
             if isinstance(decisions, dict) and decisions and not manual_override:
-                # Apply slow start mechanism - limit positions based on cycle number
-                max_positions = self.get_max_positions_for_cycle(cycle_number)
-                current_positions = len(self.portfolio.positions)
+                # AI ÖNCELİKLİ SİSTEM: "close_position" sinyali varsa tüm pozisyon kapatılır
+                has_close_position_signal = any(
+                    trade.get('signal') == 'close_position' 
+                    for trade in decisions.values() 
+                    if isinstance(trade, dict)
+                )
                 
-                # Filter out decisions for coins that might have been closed by TP/SL in the same cycle
-                decisions_to_execute = {}
-                for coin, trade in decisions.items():
-                    # Only filter if position was actually closed by TP/SL this cycle
-                    if positions_closed_by_tp_sl and coin in closed_positions:
-                        print(f"ℹ️ Filtering AI decision for {coin} as it was closed by TP/SL this cycle.")
-                    else:
-                        # Apply coin rotation check
-                        if trade.get('signal') in ['buy_to_enter', 'sell_to_enter']:
-                            if not self.check_coin_rotation(coin):
-                                continue
-                            
-                            # Apply slow start position limit
-                            if current_positions >= max_positions:
-                                print(f"⚠️ Position limit reached (Cycle {cycle_number}: max {max_positions} positions). Skipping {coin} entry.")
-                                continue
-                            current_positions += 1
-                            
-                            # Apply trend-based position sizing
-                            market_regime = self.detect_market_regime_overall()
-                            if 'quantity_usd' in trade:
-                                trade['quantity_usd'] = self.adjust_position_size_by_trend(
-                                    trade['quantity_usd'], market_regime, trade['signal']
-                                )
-                                print(f"📈 Trend-based sizing: {coin} position adjusted for {market_regime} regime")
-                        
-                        # Execute all other decisions
-                        decisions_to_execute[coin] = trade
-
-                if decisions_to_execute:
-                    self.portfolio.execute_decision(decisions_to_execute, valid_prices) # Execute filtered decisions
+                if has_close_position_signal:
+                    print("🚨 AI CLOSE_POSITION SİNYALİ: Sadece belirtilen pozisyonlar kapatılıyor")
+                    # Sadece close_position sinyali verilen coin'leri kapat
+                    for coin, trade in decisions.items():
+                        if not isinstance(trade, dict):
+                            continue
+                        if trade.get('signal') == 'close_position' and coin in self.portfolio.positions:
+                            if coin in valid_prices:
+                                position = self.portfolio.positions[coin]
+                                current_price = valid_prices[coin]
+                                direction = position.get('direction', 'long')
+                                entry_price = position['entry_price']
+                                quantity = position['quantity']
+                                margin_used = position.get('margin_usd', 0)
+                                
+                                if direction == 'long': 
+                                    profit = (current_price - entry_price) * quantity
+                                else: 
+                                    profit = (entry_price - current_price) * quantity
+                                
+                                self.portfolio.current_balance += (margin_used + profit)
+                                
+                                print(f"✅ AI CLOSE: Closed {direction} {coin} @ ${format_num(current_price, 4)} (PnL: ${format_num(profit, 2)})")
+                                
+                                history_entry = {
+                                    "symbol": coin, "direction": direction, "entry_price": entry_price, "exit_price": current_price,
+                                    "quantity": quantity, "notional_usd": position.get('notional_usd', 'N/A'), "pnl": profit,
+                                    "entry_time": position['entry_time'], "exit_time": datetime.now().isoformat(),
+                                    "leverage": position.get('leverage', 'N/A'), "close_reason": "AI close_position signal"
+                                }
+                                self.portfolio.add_to_history(history_entry)
+                                del self.portfolio.positions[coin]
+                    
+                    # AI'nin diğer kararlarını işleme (sadece yeni pozisyonlar)
+                    self.portfolio._execute_new_positions_only(decisions, valid_prices, cycle_number)
+                else:
+                    # Normal karar işleme (partial profit aktif)
+                    self.portfolio._execute_normal_decisions(decisions, valid_prices, cycle_number, positions_closed_by_tp_sl)
 
             # Execute manual override decisions if present
             elif isinstance(decisions, dict) and decisions and manual_override:
