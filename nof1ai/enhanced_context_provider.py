@@ -7,8 +7,8 @@ import numpy as np
 
 class EnhancedContextProvider:
     """
-    AI'ın karar vermesine yardımcı olacak enhanced context sağlar
-    Manipülasyon YOK - sadece daha iyi veri ve öneriler
+    Provides enhanced context to help AI make better decisions
+    NO manipulation - only better data and suggestions
     """
     
     def __init__(self):
@@ -35,7 +35,7 @@ class EnhancedContextProvider:
         return default_data if default_data is not None else []
     
     def get_enhanced_position_context(self, portfolio_state: Dict) -> Dict[str, Any]:
-        """Mevcut pozisyonlar için enhanced context sağlar"""
+        """Provides enhanced context for current positions"""
         positions = portfolio_state.get('positions', {})
         enhanced_context = {}
         
@@ -195,7 +195,7 @@ class EnhancedContextProvider:
         }
     
     def generate_enhanced_context(self) -> Dict[str, Any]:
-        """Ana enhanced context generation fonksiyonu"""
+        """Main enhanced context generation function"""
         try:
             # Load data
             portfolio_state = self.safe_file_read(self.portfolio_state_file, {})
@@ -218,7 +218,7 @@ class EnhancedContextProvider:
             return {"error": f"Context generation failed: {str(e)}"}
     
     def generate_suggestions(self, portfolio_state: Dict, cycle_history: List) -> List[str]:
-        """AI için manipülasyon içermeyen öneriler"""
+        """Non-manipulative suggestions for AI"""
         suggestions = []
         positions = portfolio_state.get('positions', {})
         
@@ -253,7 +253,7 @@ class EnhancedContextProvider:
         return suggestions
     
     def print_enhanced_context(self, context: Dict):
-        """Enhanced context'i formatlı şekilde yazdırır"""
+        """Prints enhanced context in formatted way"""
         if "error" in context:
             print(f"❌ Enhanced context error: {context['error']}")
             return

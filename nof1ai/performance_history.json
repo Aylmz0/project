@@ -1,7 +1,7 @@
 [
     {
         "cycle": 1,
-        "timestamp": "2025-11-05T18:22:34.447594",
+        "timestamp": "2025-11-06T05:52:04.992435",
         "total_value": 200.0,
         "total_return": 0.0,
         "sharpe_ratio": 0.0,
@@ -11,352 +11,52 @@
     },
     {
         "cycle": 2,
-        "timestamp": "2025-11-05T18:26:34.442099",
-        "total_value": 200.0,
-        "total_return": 0.0,
-        "sharpe_ratio": 0.0,
-        "open_positions": 4,
-        "available_cash": 119.0260743032625,
+        "timestamp": "2025-11-06T05:56:05.092147",
+        "total_value": 199.77788461538455,
+        "total_return": -0.11105769230772466,
+        "sharpe_ratio": -6.108097770903908,
+        "open_positions": 1,
+        "available_cash": 156.88,
         "total_trades": 0
     },
     {
         "cycle": 3,
-        "timestamp": "2025-11-05T18:30:34.429937",
-        "total_value": 200.24962218495915,
-        "total_return": 0.12481109247957534,
-        "sharpe_ratio": 18.973665961010276,
+        "timestamp": "2025-11-06T06:00:05.752358",
+        "total_value": 199.77788461538455,
+        "total_return": -0.11105769230772466,
+        "sharpe_ratio": -3.337497870127213,
         "open_positions": 2,
-        "available_cash": 168.15943583903749,
-        "total_trades": 2
+        "available_cash": 126.13152,
+        "total_trades": 0
     },
     {
         "cycle": 4,
-        "timestamp": "2025-11-05T18:34:34.318841",
-        "total_value": 200.7686958518799,
-        "total_return": 0.3843479259399487,
-        "sharpe_ratio": 24.048367197211036,
-        "open_positions": 3,
-        "available_cash": 135.44827337813433,
-        "total_trades": 4
+        "timestamp": "2025-11-06T06:04:05.148675",
+        "total_value": 201.18461538461534,
+        "total_return": 0.5923076923076707,
+        "sharpe_ratio": 4.1386176664465255,
+        "open_positions": 2,
+        "available_cash": 126.13152,
+        "total_trades": 0
     },
     {
         "cycle": 5,
-        "timestamp": "2025-11-05T18:38:34.512839",
-        "total_value": 200.40779016983382,
-        "total_return": 0.20389508491690833,
-        "sharpe_ratio": 7.502536586997308,
+        "timestamp": "2025-11-06T06:08:05.218471",
+        "total_value": 201.53937024079167,
+        "total_return": 0.7696851203958346,
+        "sharpe_ratio": 4.4681322558005165,
         "open_positions": 3,
-        "available_cash": 142.0031114989664,
-        "total_trades": 5
+        "available_cash": 97.77250267859078,
+        "total_trades": 1
     },
     {
         "cycle": 6,
-        "timestamp": "2025-11-05T18:42:35.951166",
-        "total_value": 200.84922901539449,
-        "total_return": 0.42461450769724246,
-        "sharpe_ratio": 12.724947822198708,
-        "open_positions": 4,
-        "available_cash": 123.61370855985025,
-        "total_trades": 5
-    },
-    {
-        "cycle": 7,
-        "timestamp": "2025-11-05T18:46:34.429376",
-        "total_value": 200.8799786766113,
-        "total_return": 0.4399893383056508,
-        "sharpe_ratio": 12.087218643101284,
-        "open_positions": 3,
-        "available_cash": 142.12610315029343,
-        "total_trades": 7
-    },
-    {
-        "cycle": 8,
-        "timestamp": "2025-11-05T18:50:34.952082",
-        "total_value": 200.47358957354987,
-        "total_return": 0.2367947867749365,
-        "sharpe_ratio": 5.0680289062311665,
-        "open_positions": 4,
-        "available_cash": 122.47716938976536,
-        "total_trades": 7
-    },
-    {
-        "cycle": 9,
-        "timestamp": "2025-11-05T18:54:34.474816",
-        "total_value": 203.00663869739626,
-        "total_return": 1.5033193486981276,
-        "sharpe_ratio": 10.780805584520179,
-        "open_positions": 4,
-        "available_cash": 122.47716938976536,
-        "total_trades": 7
-    },
-    {
-        "cycle": 10,
-        "timestamp": "2025-11-05T18:58:34.476596",
-        "total_value": 203.25040947414757,
-        "total_return": 1.625204737073787,
-        "sharpe_ratio": 11.03875403277772,
-        "open_positions": 3,
-        "available_cash": 142.64564893762798,
-        "total_trades": 9
-    },
-    {
-        "cycle": 11,
-        "timestamp": "2025-11-05T19:02:34.222030",
-        "total_value": 202.68375259244857,
-        "total_return": 1.3418762962242852,
-        "sharpe_ratio": 8.257755123983529,
-        "open_positions": 4,
-        "available_cash": 123.42414774328262,
-        "total_trades": 9
-    },
-    {
-        "cycle": 12,
-        "timestamp": "2025-11-05T19:06:34.454744",
-        "total_value": 202.28242184487783,
-        "total_return": 1.1412109224389155,
-        "sharpe_ratio": 6.564158416353339,
-        "open_positions": 4,
-        "available_cash": 123.42414774328262,
-        "total_trades": 9
-    },
-    {
-        "cycle": 13,
-        "timestamp": "2025-11-05T19:10:34.470797",
-        "total_value": 201.38154473193808,
-        "total_return": 0.690772365969039,
-        "sharpe_ratio": 3.595337770669713,
-        "open_positions": 4,
-        "available_cash": 127.28270649988075,
-        "total_trades": 10
-    },
-    {
-        "cycle": 14,
-        "timestamp": "2025-11-05T19:14:34.377662",
-        "total_value": 200.43828448374688,
-        "total_return": 0.2191422418734419,
-        "sharpe_ratio": 1.0795290734485703,
-        "open_positions": 4,
-        "available_cash": 127.28270649988075,
-        "total_trades": 10
-    },
-    {
-        "cycle": 15,
-        "timestamp": "2025-11-05T19:16:44.284545",
-        "total_value": 199.69095067908137,
-        "total_return": -0.154524660459316,
-        "sharpe_ratio": 0.0,
-        "open_positions": 4,
-        "available_cash": 123.95334021615247,
-        "total_trades": 12
-    },
-    {
-        "cycle": 16,
-        "timestamp": "2025-11-05T19:20:44.354749",
-        "total_value": 201.4707406469304,
-        "total_return": 0.7353703234652045,
-        "sharpe_ratio": 18.903299358101776,
-        "open_positions": 4,
-        "available_cash": 123.95334021615247,
-        "total_trades": 12
-    },
-    {
-        "cycle": 17,
-        "timestamp": "2025-11-05T19:24:44.924271",
-        "total_value": 201.04456070986674,
-        "total_return": 0.5222803549333719,
-        "sharpe_ratio": 9.266215866249622,
-        "open_positions": 2,
-        "available_cash": 161.4030961697367,
-        "total_trades": 14
-    },
-    {
-        "cycle": 18,
-        "timestamp": "2025-11-05T19:27:17.910636",
-        "total_value": 199.49132375628193,
-        "total_return": -0.2543381218590355,
-        "sharpe_ratio": 0.0,
-        "open_positions": 3,
-        "available_cash": 139.65402896086468,
-        "total_trades": 14
-    },
-    {
-        "cycle": 19,
-        "timestamp": "2025-11-05T19:31:19.004063",
-        "total_value": 200.54985893268167,
-        "total_return": 0.27492946634083637,
-        "sharpe_ratio": 3.304625094477394,
-        "open_positions": 3,
-        "available_cash": 139.65402896086468,
-        "total_trades": 14
-    },
-    {
-        "cycle": 20,
-        "timestamp": "2025-11-05T19:35:17.858658",
-        "total_value": 200.4237224952971,
-        "total_return": 0.21186124764855666,
-        "sharpe_ratio": 1.820674362461632,
-        "open_positions": 2,
-        "available_cash": 157.19708385850126,
-        "total_trades": 16
-    },
-    {
-        "cycle": 21,
-        "timestamp": "2025-11-05T19:39:17.996279",
-        "total_value": 200.89109860852489,
-        "total_return": 0.44554930426244255,
-        "sharpe_ratio": 3.1183470218450653,
-        "open_positions": 3,
-        "available_cash": 138.76572577609198,
-        "total_trades": 16
-    },
-    {
-        "cycle": 22,
-        "timestamp": "2025-11-05T19:43:18.059431",
-        "total_value": 201.05681234716036,
-        "total_return": 0.5284061735801799,
-        "sharpe_ratio": 3.198155400849599,
-        "open_positions": 3,
-        "available_cash": 138.76572577609198,
-        "total_trades": 16
-    },
-    {
-        "cycle": 23,
-        "timestamp": "2025-11-05T19:47:17.948221",
-        "total_value": 200.8724692277597,
-        "total_return": 0.43623461387984724,
-        "sharpe_ratio": 2.3786802284424553,
-        "open_positions": 2,
-        "available_cash": 157.90668755679016,
-        "total_trades": 17
-    },
-    {
-        "cycle": 24,
-        "timestamp": "2025-11-05T19:51:18.033861",
-        "total_value": 200.37693185053055,
-        "total_return": 0.18846592526527672,
-        "sharpe_ratio": 0.9251363908325049,
-        "open_positions": 3,
-        "available_cash": 139.39212844075652,
-        "total_trades": 17
-    },
-    {
-        "cycle": 25,
-        "timestamp": "2025-11-05T19:55:18.002434",
-        "total_value": 201.99090146503826,
-        "total_return": 0.9954507325191314,
-        "sharpe_ratio": 3.8230151369004055,
-        "open_positions": 3,
-        "available_cash": 139.39212844075652,
-        "total_trades": 17
-    },
-    {
-        "cycle": 26,
-        "timestamp": "2025-11-05T19:59:18.691066",
-        "total_value": 202.28838797757683,
-        "total_return": 1.144193988788416,
-        "sharpe_ratio": 3.944436160324335,
-        "open_positions": 2,
-        "available_cash": 158.92295976482765,
-        "total_trades": 18
-    },
-    {
-        "cycle": 27,
-        "timestamp": "2025-11-05T20:03:19.903790",
-        "total_value": 201.97281503485522,
-        "total_return": 0.9864075174276081,
-        "sharpe_ratio": 3.0613076348817923,
-        "open_positions": 3,
-        "available_cash": 137.50809093651714,
-        "total_trades": 18
-    },
-    {
-        "cycle": 28,
-        "timestamp": "2025-11-05T20:07:23.552395",
-        "total_value": 203.07933840930082,
-        "total_return": 1.5396692046504086,
-        "sharpe_ratio": 4.439486092683277,
-        "open_positions": 3,
-        "available_cash": 137.50809093651714,
-        "total_trades": 18
-    },
-    {
-        "cycle": 29,
-        "timestamp": "2025-11-05T20:11:18.695125",
-        "total_value": 203.24583773118343,
-        "total_return": 1.6229188655917142,
-        "sharpe_ratio": 4.326444793270976,
-        "open_positions": 1,
-        "available_cash": 181.71881524859717,
-        "total_trades": 20
-    },
-    {
-        "cycle": 30,
-        "timestamp": "2025-11-05T20:15:20.270566",
-        "total_value": 203.64554518819875,
-        "total_return": 1.8227725940993766,
-        "sharpe_ratio": 4.4994783035040244,
-        "open_positions": 3,
-        "available_cash": 137.42094707722376,
-        "total_trades": 20
-    },
-    {
-        "cycle": 31,
-        "timestamp": "2025-11-05T20:19:22.908695",
-        "total_value": 202.69913192989694,
-        "total_return": 1.349565964948468,
-        "sharpe_ratio": 3.11735740472783,
-        "open_positions": 3,
-        "available_cash": 143.43212800099155,
-        "total_trades": 21
-    },
-    {
-        "cycle": 31,
-        "timestamp": "2025-11-05T20:19:40.206085",
-        "total_value": 202.62468514554206,
-        "total_return": 1.3123425727710298,
-        "sharpe_ratio": 0.0,
-        "open_positions": 3,
-        "available_cash": 143.43212800099155,
-        "total_trades": 21
-    },
-    {
-        "cycle": 32,
-        "timestamp": "2025-11-05T20:23:45.148708",
-        "total_value": 202.91242396633052,
-        "total_return": 1.456211983165261,
-        "sharpe_ratio": 13.476133191881143,
-        "open_positions": 3,
-        "available_cash": 143.43212800099155,
-        "total_trades": 21
-    },
-    {
-        "cycle": 33,
-        "timestamp": "2025-11-05T20:24:50.656203",
-        "total_value": 203.36326599495686,
-        "total_return": 1.681632997478431,
-        "sharpe_ratio": 38.82181790613865,
-        "open_positions": 3,
-        "available_cash": 143.43212800099155,
-        "total_trades": 21
-    },
-    {
-        "cycle": 34,
-        "timestamp": "2025-11-05T20:28:48.220960",
-        "total_value": 201.0868950495705,
-        "total_return": 0.5434475247852504,
-        "sharpe_ratio": 3.5507520506104333,
+        "timestamp": "2025-11-06T06:12:05.503919",
+        "total_value": 202.04161287179397,
+        "total_return": 1.0208064358969864,
+        "sharpe_ratio": 3.0743253554151395,
         "open_positions": 5,
-        "available_cash": 109.55337868658535,
-        "total_trades": 21
-    },
-    {
-        "cycle": 35,
-        "timestamp": "2025-11-05T20:32:48.181796",
-        "total_value": 200.8067078304812,
-        "total_return": 0.4033539152406007,
-        "sharpe_ratio": 1.9161441456489354,
-        "open_positions": 2,
-        "available_cash": 160.69675207356036,
-        "total_trades": 24
+        "available_cash": 62.32128825936376,
+        "total_trades": 1
     }
 ]

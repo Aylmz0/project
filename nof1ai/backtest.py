@@ -443,80 +443,24 @@ class AdvancedRiskManager:
     
     def should_enter_trade(self, symbol: str, current_positions: Dict, current_prices: Dict, 
                           confidence: float, proposed_notional: float, current_balance: float = 200.0, 
-                          ai_risk_usd: float = None, dynamic_risk_limit: float = None, 
-                          coin_risk_limit: float = None) -> Dict[str, Any]:
-        """Determine if a trade should be entered based on risk parameters with two-level control."""
+                          ai_risk_usd: float = None) -> Dict[str, Any]:
+        """Determine if a trade should be entered based on position limits only."""
         decision = {
             'should_enter': True,
-            'reason': '',
+            'reason': 'Position limit check passed',
             'adjusted_notional': proposed_notional
         }
         
-        # LEVEL 1: Portfolio diversification check
+        # Only check position limits - total risk limit removed
         if not self.check_portfolio_diversification(current_positions, symbol):
             decision['should_enter'] = False
-            decision['reason'] = 'Portfolio diversification limit reached'
+            decision['reason'] = 'Position limit reached'
             return decision
         
-        # LEVEL 2: Portfolio risk check
-        current_risk = self.calculate_portfolio_risk(current_positions, current_prices)
-        if current_risk > self.max_portfolio_risk:
-            decision['should_enter'] = False
-            decision['reason'] = f'Portfolio risk limit exceeded: {current_risk:.2%}'
-            return decision
-        
-        # **NEW TWO-LEVEL RISK CONTROL:**
-        # LEVEL 1: Total portfolio risk limit (90% of available cash)
-        if dynamic_risk_limit is not None:
-            total_risk_limit = dynamic_risk_limit
-            decision['reason'] = f'Using dynamic total risk limit: ${total_risk_limit:.2f}'
-        else:
-            total_risk_limit = current_balance * 0.90  # 90% of available cash
-            decision['reason'] = f'Using fallback 90% total limit: ${total_risk_limit:.2f}'
-        
-        # LEVEL 2: Individual coin risk limit (25% of available cash)
-        if coin_risk_limit is not None:
-            coin_risk_limit = coin_risk_limit
-            decision['reason'] += f', Using dynamic coin limit: ${coin_risk_limit:.2f}'
-        else:
-            coin_risk_limit = current_balance * 0.25  # 25% of available cash per coin
-            decision['reason'] += f', Using fallback 25% coin limit: ${coin_risk_limit:.2f}'
-        
-        # Calculate current total margin used
-        current_total_margin = sum(pos.get('margin_usd', 0) for pos in current_positions.values())
-        
-        # Check if adding new position would exceed total risk limit
-        proposed_margin = proposed_notional / 10  # Since AI uses 10x leverage typically
-        total_margin_after_trade = current_total_margin + proposed_margin
-        
-        if total_margin_after_trade > total_risk_limit:
-            decision['should_enter'] = False
-            decision['reason'] = f'Total risk limit exceeded: ${total_margin_after_trade:.2f} > ${total_risk_limit:.2f}'
-            return decision
-        
-        # Check if proposed margin exceeds coin risk limit
-        if proposed_margin > coin_risk_limit:
-            decision['should_enter'] = False
-            decision['reason'] = f'Coin risk limit exceeded: ${proposed_margin:.2f} > ${coin_risk_limit:.2f}'
-            return decision
-        
-        # **NEW: Check AI's risk_usd value if provided**
+        # **NOTE: AI's risk_usd value is ignored - we use our own confidence-based margin calculation**
         if ai_risk_usd is not None:
-            # Use AI's risk_usd value directly for risk limit check
-            if ai_risk_usd > coin_risk_limit:
-                decision['should_enter'] = False
-                decision['reason'] = f'AI risk exceeds coin limit: ${ai_risk_usd:.2f} > ${coin_risk_limit:.2f}'
-                return decision
-            # If AI's risk is within limits, accept it
-            decision['reason'] = f'AI risk ${ai_risk_usd:.2f} within limits (total: ${total_risk_limit:.2f}, coin: ${coin_risk_limit:.2f})'
-        
-        # Adjust position size based on confidence
-        if confidence < 0.3:
-            decision['adjusted_notional'] = proposed_notional * 0.5
-            decision['reason'] = 'Low confidence - reduced position size'
-        elif confidence > 0.8:
-            decision['adjusted_notional'] = min(proposed_notional * 1.2, proposed_notional)
-            decision['reason'] = 'High confidence - slightly increased position size'
+            # Log AI's risk_usd for information only, but don't use it for risk management
+            decision['reason'] = f'AI risk_usd: ${ai_risk_usd:.2f} (ignored) - Using system margin calculation'
         
         return decision
 

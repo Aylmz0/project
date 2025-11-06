@@ -9,7 +9,6 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any
 import warnings
 import traceback # For detailed error logging
-import threading
 
 # Import new utility modules
 from config import Config
@@ -56,7 +55,7 @@ class DeepSeekAPI:
                     {
                         "role": "system",
                         "content": """You are a zero-shot systematic trading model participating in Alpha Arena.
-Your goal is to maximize PnL (profit and loss) by trading perpetual futures on 6 assets: XRP, DOGE, JASMY, ADA, LINK, SOL.
+Your goal is to maximize PnL (profit and loss) by trading perpetual futures on 6 assets: XRP, DOGE, ASTR, ADA, LINK, SOL.
 
 You are given $200 starting capital and must process numerical market data to discover alpha.
 Your Sharpe ratio is provided to help normalize for risky behavior.
@@ -65,18 +64,17 @@ CRITICAL RULES:
 - Trade systematically using only the numerical data provided
 - Infer market narratives from time-series data, not external news
 - Always specify complete exit plans: profit_target, stop_loss, invalidation_condition
-- Use DYNAMIC risk sizing: Maximum risk per trade is 25% of available cash (scales with portfolio)
+- Use fixed risk sizing: Maximum risk per trade is 25% of portfolio ($50 on $200)
 - Use leverage up to 10x for calculated exposure
 - Minimum confidence threshold: 0.5 (optimized for more setups)
 - Maximum positions: 5
 
 RISK MANAGEMENT (NOF1AI ADVANCED RISK PROFILE):
-- Portfolio risk limit: 90% of available cash (dynamic - scales with portfolio)
-- Coin risk limit: 25% of available cash per coin (dynamic - scales with portfolio)
-- Position sizing based on confidence and available cash:
-  - High Confidence (0.7-0.8): 20-25% of available cash
-  - Medium Confidence (0.6-0.7): 15-20% of available cash  
-  - Low Confidence (0.4-0.6): 10-15% of available cash
+- Portfolio risk limit: 25% ($50 on $200) - Fixed maximum risk per trade
+- Position sizing based on confidence:
+  - High Confidence (0.7-0.8): $40-50 risk_usd
+  - Medium Confidence (0.6-0.7): $30-40 risk_usd  
+  - Low Confidence (0.4-0.6): $20-30 risk_usd
 - Maximum positions: 5 out of 6 coins
 - Aim for Risk/Reward ratio of at least 1:1.3
 - Use 4-hour ATR for stop-loss distances
@@ -88,9 +86,7 @@ ADVANCED TRADING STRATEGY:
 - Analyze Open Interest and Funding Rate for market sentiment
 - Consider volume vs average volume for momentum confirmation
 - Use advanced technical analysis with multiple timeframe confirmation
-- **BE HIGHLY AGGRESSIVE: Use higher confidence levels (0.7-0.8) for strong technical setups**
-- **CALCULATE LARGER POSITIONS: Higher confidence should translate to larger position sizes**
-- **VOLATILITY AWARENESS: High volatility coins like JASMY can deliver bigger moves - size accordingly**
+- **BE MORE AGGRESSIVE: Don't just hold positions - actively manage entries and exits**
 - **Use dynamic TP/SL adjustment based on market conditions**
 - **Take profits when targets are near, don't wait for exact hits**
 - **Be proactive with position management, not just reactive**
@@ -113,12 +109,6 @@ DATA CONTEXT:
 - Use series to understand momentum and trend structure
 - Consider Open Interest and Funding Rate for market sentiment
 - Analyze volume patterns for confirmation
-
-TREND ALIGNMENT GUIDELINES:
-- When 4h trend is BEARISH and price is below 4h EMA20: Consider whether SHORT positions might offer better risk-reward
-- When 4h trend is BULLISH and price is above 4h EMA20: Consider whether LONG positions might offer better risk-reward  
-- Counter-trend positions require stronger confirmation but can be profitable
-- Market regime should influence your directional analysis, not dictate it
 
 ACTION FORMAT:
 Use signals: `buy_to_enter`, `sell_to_enter`, `hold`, `close_position`.
@@ -218,7 +208,7 @@ DECISIONS
   "XRP": { "signal": "hold" },
   "ADA": { "signal": "hold" },
   "DOGE": { "signal": "hold" },
-  "JASMY": { "signal": "hold" },
+  "ASTR": { "signal": "hold" },
   "LINK": { "signal": "hold" }
 }
 """
@@ -256,7 +246,7 @@ DECISIONS
         """Generate safe hold decisions for all coins"""
         print("🛡️ Generating safe hold decisions")
         hold_decisions = {}
-        for coin in ['XRP', 'DOGE', 'JASMY', 'ADA', 'LINK', 'SOL']:
+        for coin in ['XRP', 'DOGE', 'ASTR', 'ADA', 'LINK', 'SOL']:
             hold_decisions[coin] = {"signal": "hold", "justification": "Safe mode: Holding due to API error"}
         
         return f"""
@@ -584,28 +574,18 @@ class RealMarketData:
 class PortfolioManager:
     """Manages the portfolio state, positions, and history."""
 
-    def __init__(self, initial_balance: float = None):
-        # Dinamik initial balance - eğer verilmediyse gerçek balance'dan al veya $200 kullan
-        if initial_balance is None:
-            # Önce saved state'den dene, yoksa Config'den al
-            saved_state = safe_file_read("portfolio_state.json", default_data={})
-            if 'initial_balance' in saved_state:
-                self.initial_balance = saved_state['initial_balance']
-            else:
-                self.initial_balance = Config.INITIAL_BALANCE
-        else:
-            self.initial_balance = initial_balance
-            
+    def __init__(self, initial_balance: float = 200.0):
+        self.initial_balance = initial_balance
         self.state_file = "portfolio_state.json"; self.history_file = "trade_history.json"
         self.override_file = "manual_override.json"; self.cycle_history_file = "cycle_history.json"
-        self.max_cycle_history = 50; self.maintenance_margin_rate = 0.01
+        self.max_cycle_history = 50; self.max_trade_notional_usd = Config.MAX_TRADE_NOTIONAL_USD # Use config value
+        self.maintenance_margin_rate = 0.01
 
         self.current_balance = self.initial_balance; self.positions = {}
         self.trade_history = self.load_trade_history() # Load first
         self.load_state() # Loads balance, positions, trade_count
         self.cycle_history = self.load_cycle_history()
         self.risk_manager = AdvancedRiskManager()  # Initialize risk manager
-        self.market_data = RealMarketData()  # Initialize market data for counter-trend detection
 
         self.total_value = self.current_balance
         self.total_return = 0.0
@@ -628,7 +608,7 @@ class PortfolioManager:
     def load_trade_history(self) -> List[Dict]:
         history = safe_file_read(self.history_file, default_data=[]); print(f"✅ Loaded {len(history)} trades."); return history
     def save_trade_history(self):
-        history_to_save = self.trade_history[-100:]; safe_file_write(self.history_file, history_to_save); print(f"✅ Saved {len(history_to_save)} trades.")
+        history_to_save = self.trade_history[-25:]; safe_file_write(self.history_file, history_to_save); print(f"✅ Saved {len(history_to_save)} trades.")
     def add_to_history(self, trade: Dict):
         self.trade_history.append(trade); self.trade_count = len(self.trade_history); self.save_trade_history()
 
@@ -893,77 +873,60 @@ class PortfolioManager:
         
         exit_decision = {"action": "hold", "reason": "No exit trigger"}
         
-        # Check if position is already at or below minimum limit
-        current_margin = position.get('margin_usd', 0)
-        min_limit = self._calculate_dynamic_minimum_limit()
-        
-        if current_margin <= min_limit:
-            print(f"🛑 Partial sale blocked: Position margin ${current_margin:.2f} <= minimum limit ${min_limit:.2f}")
-            return exit_decision  # Return hold decision - don't attempt partial sale
-        
         if direction == 'long':
             unrealized_pnl_percent = (current_price - entry_price) / entry_price
             
-            # Enhanced Partial Profit Taking - %0.8, %1.1, %1.4 kar seviyeleri
-            if unrealized_pnl_percent >= 0.014:  # %1.4 profit - take 75%
+            # Enhanced Partial Profit Taking - Dynamic percentages with minimum limit check
+            if unrealized_pnl_percent >= 0.03:  # 3% profit - take 75%
                 take_profit_percent = 0.75
                 adjusted_percent = self._adjust_partial_sale_for_min_limit(position, take_profit_percent)
-                if adjusted_percent > 0:
-                    return {"action": "partial_close", "percent": adjusted_percent, "reason": f"Enhanced profit taking at 1.4% gain ({adjusted_percent*100:.0f}%)"}
-            elif unrealized_pnl_percent >= 0.011:  # %1.1 profit - take 50%
+                return {"action": "partial_close", "percent": adjusted_percent, "reason": f"Enhanced profit taking at 3% gain ({adjusted_percent*100:.0f}%)"}
+            elif unrealized_pnl_percent >= 0.02:  # 2% profit - take 50%
                 take_profit_percent = 0.5
                 adjusted_percent = self._adjust_partial_sale_for_min_limit(position, take_profit_percent)
-                if adjusted_percent > 0:
-                    return {"action": "partial_close", "percent": adjusted_percent, "reason": f"Enhanced profit taking at 1.1% gain ({adjusted_percent*100:.0f}%)"}
-            elif unrealized_pnl_percent >= 0.008:  # %0.8 profit - take 25%
+                return {"action": "partial_close", "percent": adjusted_percent, "reason": f"Enhanced profit taking at 2% gain ({adjusted_percent*100:.0f}%)"}
+            elif unrealized_pnl_percent >= 0.01:  # 1% profit - take 25%
                 take_profit_percent = 0.25
                 adjusted_percent = self._adjust_partial_sale_for_min_limit(position, take_profit_percent)
-                if adjusted_percent > 0:
-                    return {"action": "partial_close", "percent": adjusted_percent, "reason": f"Enhanced profit taking at 0.8% gain ({adjusted_percent*100:.0f}%)"}
+                return {"action": "partial_close", "percent": adjusted_percent, "reason": f"Enhanced profit taking at 1% gain ({adjusted_percent*100:.0f}%)"}
             
             # Dynamic Trailing Stop based on profit level
-            if unrealized_pnl_percent >= 0.011:  # %1.1 profit - tighter trailing stop
-                trailing_stop = entry_price * 1.008  # %0.8 above entry
+            if unrealized_pnl_percent >= 0.02:  # 2% profit - tighter trailing stop
+                trailing_stop = entry_price * 1.015  # 1.5% above entry
                 if current_price >= trailing_stop:
                     position['exit_plan']['stop_loss'] = trailing_stop
-                    return {"action": "update_stop", "new_stop": trailing_stop, "reason": "Tight trailing stop at 1.1% profit"}
-            elif unrealized_pnl_percent >= 0.008:  # %0.8 profit - normal trailing stop
-                trailing_stop = entry_price * 1.005  # %0.5 above entry
+                    return {"action": "update_stop", "new_stop": trailing_stop, "reason": "Tight trailing stop at 2% profit"}
+            elif unrealized_pnl_percent >= 0.01:  # 1% profit - normal trailing stop
+                trailing_stop = entry_price * 1.02  # 2% above entry
                 if current_price >= trailing_stop:
                     position['exit_plan']['stop_loss'] = trailing_stop
-                    return {"action": "update_stop", "new_stop": trailing_stop, "reason": "Normal trailing stop at 0.8% profit"}
+                    return {"action": "update_stop", "new_stop": trailing_stop, "reason": "Normal trailing stop at 1% profit"}
         
         elif direction == 'short':
             unrealized_pnl_percent = (entry_price - current_price) / entry_price
             
-            # Enhanced Partial Profit Taking for shorts - %0.8, %1.1, %1.4 kar seviyeleri
-            if unrealized_pnl_percent >= 0.014:  # %1.4 profit - take 75%
+            # Enhanced Partial Profit Taking for shorts
+            if unrealized_pnl_percent >= 0.03:  # 3% profit - take 75%
                 take_profit_percent = 0.75
-                adjusted_percent = self._adjust_partial_sale_for_min_limit(position, take_profit_percent)
-                if adjusted_percent > 0:
-                    return {"action": "partial_close", "percent": adjusted_percent, "reason": f"Enhanced profit taking at 1.4% gain ({adjusted_percent*100:.0f}%)"}
-            elif unrealized_pnl_percent >= 0.011:  # %1.1 profit - take 50%
+                return {"action": "partial_close", "percent": take_profit_percent, "reason": "Enhanced profit taking at 3% gain (75%)"}
+            elif unrealized_pnl_percent >= 0.02:  # 2% profit - take 50%
                 take_profit_percent = 0.5
-                adjusted_percent = self._adjust_partial_sale_for_min_limit(position, take_profit_percent)
-                if adjusted_percent > 0:
-                    return {"action": "partial_close", "percent": adjusted_percent, "reason": f"Enhanced profit taking at 1.1% gain ({adjusted_percent*100:.0f}%)"}
-            elif unrealized_pnl_percent >= 0.008:  # %0.8 profit - take 25%
+                return {"action": "partial_close", "percent": take_profit_percent, "reason": "Enhanced profit taking at 2% gain (50%)"}
+            elif unrealized_pnl_percent >= 0.01:  # 1% profit - take 25%
                 take_profit_percent = 0.25
-                adjusted_percent = self._adjust_partial_sale_for_min_limit(position, take_profit_percent)
-                if adjusted_percent > 0:
-                    return {"action": "partial_close", "percent": adjusted_percent, "reason": f"Enhanced profit taking at 0.8% gain ({adjusted_percent*100:.0f}%)"}
+                return {"action": "partial_close", "percent": take_profit_percent, "reason": "Enhanced profit taking at 1% gain (25%)"}
             
             # Dynamic Trailing Stop for shorts
-            if unrealized_pnl_percent >= 0.011:  # %1.1 profit - tighter trailing stop
-                trailing_stop = entry_price * 0.992  # %0.8 below entry
+            if unrealized_pnl_percent >= 0.02:  # 2% profit - tighter trailing stop
+                trailing_stop = entry_price * 0.985  # 1.5% below entry
                 if current_price <= trailing_stop:
                     position['exit_plan']['stop_loss'] = trailing_stop
-                    return {"action": "update_stop", "new_stop": trailing_stop, "reason": "Tight trailing stop at 1.1% profit"}
-            elif unrealized_pnl_percent >= 0.008:  # %0.8 profit - normal trailing stop
-                trailing_stop = entry_price * 0.995  # %0.5 below entry
+                    return {"action": "update_stop", "new_stop": trailing_stop, "reason": "Tight trailing stop at 2% profit"}
+            elif unrealized_pnl_percent >= 0.01:  # 1% profit - normal trailing stop
+                trailing_stop = entry_price * 0.98  # 2% below entry
                 if current_price <= trailing_stop:
                     position['exit_plan']['stop_loss'] = trailing_stop
-                    return {"action": "update_stop", "new_stop": trailing_stop, "reason": "Normal trailing stop at 0.8% profit"}
+                    return {"action": "update_stop", "new_stop": trailing_stop, "reason": "Normal trailing stop at 1% profit"}
         
         return exit_decision
 
@@ -971,8 +934,7 @@ class PortfolioManager:
         """Execute only new position entries after AI close_position signal"""
         print("🔄 Executing new positions only (after close_position signal)")
         
-        # KADEMELİ POZİSYON SİSTEMİ: Cycle bazlı pozisyon limiti
-        max_positions_for_cycle = self.get_max_positions_for_cycle(cycle_number)
+        max_positions = 5  # Fixed maximum positions
         current_positions = len(self.positions)
         
         decisions_to_execute = {}
@@ -982,9 +944,9 @@ class PortfolioManager:
                 
             signal = trade.get('signal')
             if signal in ['buy_to_enter', 'sell_to_enter']:
-                # Apply kademeli position limit
-                if current_positions > max_positions_for_cycle:
-                    print(f"⚠️ KADEMELİ POZİSYON LİMİTİ (Cycle {cycle_number}): Max {max_positions_for_cycle} positions allowed. Skipping {coin} entry.")
+                # Apply position limit
+                if current_positions >= max_positions:
+                    print(f"⚠️ Position limit reached (max {max_positions} positions). Skipping {coin} entry.")
                     continue
                 current_positions += 1
                 
@@ -993,25 +955,11 @@ class PortfolioManager:
         if decisions_to_execute:
             self.execute_decision(decisions_to_execute, valid_prices)
 
-    def get_max_positions_for_cycle(self, cycle_number: int) -> int:
-        """Cycle bazlı maximum pozisyon limiti - Kademeli artış sistemi"""
-        if cycle_number == 1:
-            return 1  # Cycle 1: max 1 pozisyon
-        elif cycle_number == 2:
-            return 2  # Cycle 2: max 2 pozisyon
-        elif cycle_number == 3:
-            return 3  # Cycle 3: max 3 pozisyon
-        elif cycle_number == 4:
-            return 4  # Cycle 4: max 4 pozisyon
-        else:
-            return 5  # Cycle 5+: max 5 pozisyon
-
     def _execute_normal_decisions(self, decisions: Dict, valid_prices: Dict, cycle_number: int, positions_closed_by_tp_sl: bool):
         """Execute normal AI decisions with partial profit active"""
         print("🔄 Executing normal AI decisions (partial profit active)")
         
-        # KADEMELİ POZİSYON SİSTEMİ: Cycle bazlı pozisyon limiti
-        max_positions_for_cycle = self.get_max_positions_for_cycle(cycle_number)
+        max_positions = 5  # Fixed maximum positions
         current_positions = len(self.positions)
         
         decisions_to_execute = {}
@@ -1021,9 +969,9 @@ class PortfolioManager:
                 
             signal = trade.get('signal')
             if signal in ['buy_to_enter', 'sell_to_enter']:
-                # Apply kademeli position limit
-                if current_positions > max_positions_for_cycle:
-                    print(f"⚠️ KADEMELİ POZİSYON LİMİTİ (Cycle {cycle_number}): Max {max_positions_for_cycle} positions allowed. Skipping {coin} entry.")
+                # Apply position limit
+                if current_positions >= max_positions:
+                    print(f"⚠️ Position limit reached (max {max_positions} positions). Skipping {coin} entry.")
                     continue
                 current_positions += 1
                 
@@ -1035,23 +983,15 @@ class PortfolioManager:
         if decisions_to_execute:
             self.execute_decision(decisions_to_execute, valid_prices)
 
-    def _calculate_dynamic_minimum_limit(self) -> float:
-        """Calculate dynamic minimum limit: $15 fixed OR 10% of available cash, whichever is larger"""
-        min_from_percentage = self.current_balance * 0.10
-        min_limit = max(15.0, min_from_percentage)
-        print(f"📊 Dynamic minimum limit: ${min_limit:.2f} (${15.0} fixed vs ${min_from_percentage:.2f} 10% of ${self.current_balance:.2f} available cash)")
-        return min_limit
-
     def _adjust_partial_sale_for_min_limit(self, position: Dict, proposed_percent: float) -> float:
-        """Adjust partial sale percentage to ensure minimum limit remains after sale"""
-        current_margin = position.get('margin_usd', 0)
+        """Adjust partial sale percentage to ensure minimum $10 remains after sale"""
+        from config import Config
         
-        # Calculate dynamic minimum limit: $15 fixed OR 10% of available cash, whichever is larger
-        min_remaining = self._calculate_dynamic_minimum_limit()
+        current_margin = position.get('margin_usd', 0)
+        min_remaining = Config.MIN_PARTIAL_PROFIT_REMAINING_USD  # $10 minimum margin
         
         if current_margin <= min_remaining:
             # Position already at or below minimum, don't sell
-            print(f"🛑 Partial sale blocked: Position margin ${current_margin:.2f} <= minimum limit ${min_remaining:.2f}")
             return 0.0
         
         # Calculate remaining margin after proposed sale
@@ -1061,41 +1001,12 @@ class PortfolioManager:
             # Proposed sale keeps us above minimum, use as-is
             return proposed_percent
         else:
-            # Adjust sale to leave exactly min_remaining margin
+            # Adjust sale to leave exactly $10 margin remaining
             adjusted_sale_amount = current_margin - min_remaining
             adjusted_percent = adjusted_sale_amount / current_margin
             
-            print(f"📊 Adjusted partial sale: {proposed_percent*100:.0f}% → {adjusted_percent*100:.0f}% to maintain ${min_remaining:.2f} minimum limit")
+            print(f"📊 Adjusted partial sale: {proposed_percent*100:.0f}% → {adjusted_percent*100:.0f}% to maintain ${min_remaining} margin minimum")
             return adjusted_percent
-
-    def _is_counter_trend_trade(self, coin: str, signal: str, indicators_3m: Dict, indicators_4h: Dict) -> bool:
-        """Check if trade is counter-trend based on 4h trend vs 3m signal"""
-        try:
-            if 'error' in indicators_3m or 'error' in indicators_4h:
-                return False
-            
-            price_4h = indicators_4h.get('current_price')
-            ema20_4h = indicators_4h.get('ema_20')
-            price_3m = indicators_3m.get('current_price')
-            ema20_3m = indicators_3m.get('ema_20')
-            
-            # Determine 4h trend direction
-            trend_4h = "BULLISH" if price_4h > ema20_4h else "BEARISH"
-            
-            # Determine 3m trend direction
-            trend_3m = "BULLISH" if price_3m > ema20_3m else "BEARISH"
-            
-            # Check if trade is counter-trend (signal vs 4h trend)
-            if signal == 'buy_to_enter' and trend_4h == "BEARISH":
-                return True  # Long against bearish 4h trend
-            elif signal == 'sell_to_enter' and trend_4h == "BULLISH":
-                return True  # Short against bullish 4h trend
-            
-            return False
-            
-        except Exception as e:
-            print(f"⚠️ Counter-trend detection error for {coin}: {e}")
-            return False
 
     def calculate_dynamic_risk(self, market_regime: str, confidence: float) -> float:
         """Calculate dynamic risk based on market regime and confidence"""
@@ -1115,16 +1026,27 @@ class PortfolioManager:
             
         return min(base_risk, 60.0)  # Cap at $60 maximum risk
 
+    def calculate_dynamic_risk_limit(self) -> float:
+        """Calculate dynamic risk limit based on current portfolio value (25% of portfolio)"""
+        risk_percentage = 0.25  # 25% of portfolio
+        min_risk = 10.0  # Minimum $10 risk limit
+        max_risk = 100.0  # Maximum $100 risk limit
+        
+        dynamic_limit = self.total_value * risk_percentage
+        return max(min_risk, min(max_risk, dynamic_limit))
 
     def calculate_confidence_based_margin(self, confidence: float, available_cash: float) -> float:
-        """Calculate margin based on confidence level and available cash (new simplified formula)"""
-        # Max margin = 40% of available cash × confidence
-        margin = available_cash * 0.40 * confidence
+        """Calculate margin based on confidence level and available cash (simple formula)"""
+        # Max margin = 25% of portfolio ($50 on $200)
+        max_margin = min(available_cash * 0.25, 50.0)
+        
+        # Simple formula: margin = max_margin * confidence
+        margin = max_margin * confidence
         
         # Apply minimum margin limit ($10)
         margin = max(margin, Config.MIN_POSITION_MARGIN_USD)
         
-        print(f"📊 Confidence-based margin: ${margin:.2f} (confidence: {confidence:.2f}, available cash: ${available_cash:.2f})")
+        print(f"📊 Confidence-based margin: ${margin:.2f} (confidence: {confidence:.2f}, max margin: ${max_margin:.2f})")
         return margin
 
     def get_volume_threshold(self, market_regime: str, signal: str) -> float:
@@ -1303,19 +1225,6 @@ class PortfolioManager:
                         stop_loss = current_price + ((stop_loss - current_price) * stop_loss_multiplier)
                     print(f"📊 Dynamic Stop-Loss: {coin} için {stop_loss_multiplier}x multiplier uygulandı")
                 
-                # 5. Counter-Trend Detection (Sadece bilgilendirme amaçlı - confidence değiştirilmez)
-                # Get indicators for counter-trend detection
-                try:
-                    indicators_3m = self.market_data.get_technical_indicators(coin, '3m')
-                    indicators_4h = self.market_data.get_technical_indicators(coin, '4h')
-                    is_counter_trend = self._is_counter_trend_trade(coin, signal, indicators_3m, indicators_4h)
-                    if is_counter_trend:
-                        print(f"ℹ️ COUNTER-TREND DETECTED: {coin} - AI kararına müdahale edilmiyor")
-                        # Counter-trend trade'ler için confidence değiştirilmez - AI kararına saygı duyulur
-                except Exception as e:
-                    print(f"⚠️ Counter-trend detection failed for {coin}: {e}")
-                    is_counter_trend = False
-                
                 # Use dynamic confidence-based margin calculation instead of AI's quantity_usd
                 # This ensures position sizing is ratio-based and dynamic
                 calculated_margin = self.calculate_confidence_based_margin(confidence, self.current_balance)
@@ -1323,36 +1232,35 @@ class PortfolioManager:
                 # Apply market regime multiplier
                 calculated_margin *= market_regime_multiplier
                 
-                # MINIMUM $10 COIN MIKTARI KONTROLÜ
-                if calculated_margin < 10.0:
-                    print(f"⚠️ Calculated margin ${calculated_margin:.2f} below minimum $10 coin amount. Trade blocked.")
-                    continue
-                
-                # AVAILABLE CASH KORUMA KONTROLÜ
-                min_available_cash = self.current_balance * 0.10
-                if (self.current_balance - calculated_margin) < min_available_cash:
-                    print(f"⚠️ Trade would reduce available cash below minimum ${min_available_cash:.2f}. Trade blocked.")
-                    continue
+                # MARGIN BAZLI MINIMUM KONTROLÜ
+                if calculated_margin < Config.MIN_POSITION_MARGIN_USD:
+                    print(f"⚠️ Calculated margin ${calculated_margin:.2f} below minimum ${Config.MIN_POSITION_MARGIN_USD}. Increasing to minimum.")
+                    calculated_margin = Config.MIN_POSITION_MARGIN_USD
                 
                 # Convert margin to notional using leverage
                 calculated_notional_usd = calculated_margin * leverage
                 print(f"   Dynamic confidence-based sizing: ${calculated_notional_usd:.2f} notional (${calculated_margin:.2f} margin)")
                 
-                # Check risk management constraints with new simplified system
-                # Minimum $10 ve available cash koruma zaten kontrol edildi
-                # Risk manager artık sadece position limit kontrolü yapacak
+                # Check risk management constraints with dynamic limits
+                dynamic_risk_limit = self.calculate_dynamic_risk_limit()
                 risk_decision = self.risk_manager.should_enter_trade(
                     symbol=coin,
                     current_positions=self.positions,
                     current_prices=current_prices,
                     confidence=confidence,
                     proposed_notional=calculated_notional_usd,
-                    current_balance=self.current_balance
+                    current_balance=self.current_balance,
+                    ai_risk_usd=trade.get('risk_usd'),  # Pass AI's risk_usd value
+                    dynamic_risk_limit=dynamic_risk_limit  # Pass dynamic risk limit
                 )
                 
                 if not risk_decision['should_enter']:
                     print(f"⚠️ Risk management blocked trade: {risk_decision['reason']}")
                     continue
+                
+                if risk_decision['adjusted_notional'] != calculated_notional_usd:
+                    print(f"   Risk-adjusted notional: ${risk_decision['adjusted_notional']:.2f}")
+                    calculated_notional_usd = risk_decision['adjusted_notional']
                 
                 notional_usd = calculated_notional_usd
                 margin_usd = notional_usd / leverage # Margin required
@@ -1422,21 +1330,15 @@ class AlphaArenaDeepSeek:
         self.deepseek = DeepSeekAPI(api_key)
         self.risk_manager = AdvancedRiskManager()
         self.invocation_count = 0 # Track AI calls since bot start
-        self.tp_sl_timer = None
-        self.is_running = False
 
     def get_max_positions_for_cycle(self, cycle_number: int) -> int:
-        """Cycle bazlı maximum pozisyon limiti - Kademeli artış sistemi"""
-        if cycle_number == 1:
-            return 1  # Cycle 1: max 1 pozisyon
-        elif cycle_number == 2:
-            return 2  # Cycle 2: max 2 pozisyon
-        elif cycle_number == 3:
-            return 3  # Cycle 3: max 3 pozisyon
-        elif cycle_number == 4:
-            return 4  # Cycle 4: max 4 pozisyon
+        """Cycle bazlı maximum pozisyon limiti - Yavaş başlama mekanizması"""
+        if cycle_number <= 3:
+            return 2  # İlk 3 cycle: max 2 pozisyon
+        elif cycle_number <= 6:
+            return 4  # Sonraki 3 cycle: max 4 pozisyon
         else:
-            return 5  # Cycle 5+: max 5 pozisyon
+            return 5  # Full kapasite
 
     def check_trend_alignment(self, coin: str) -> bool:
         """Check if trends are aligned across multiple timeframes"""
@@ -2041,8 +1943,12 @@ REMEMBER: These are suggestions only. You make the final trading decisions based
         # Add historical context section
         trading_context = self.get_trading_context()
         
-        # Calculate current risk status - NEW SIMPLIFIED SYSTEM
+        # Calculate current risk status - FIXED: Use margin_usd instead of risk_usd
         total_margin_used = sum(pos.get('margin_usd', 0) for pos in self.portfolio.positions.values())
+        dynamic_risk_limit = self.portfolio.calculate_dynamic_risk_limit()
+        # FIX: Risk capacity should be based on available cash, not just dynamic limit
+        risk_capacity_remaining = min(dynamic_risk_limit - total_margin_used, self.portfolio.current_balance)
+        risk_capacity_remaining = max(0, risk_capacity_remaining)
         current_positions_count = len(self.portfolio.positions)
         max_positions = 5
         
@@ -2054,13 +1960,9 @@ Recent Trading Decisions: {json.dumps(trading_context['recent_decisions'], inden
 
 {'='*20} REAL-TIME RISK STATUS {'='*20}
 
-CURRENT STATUS: {current_positions_count} positions open, ${format_num(total_margin_used, 2)} margin used
-AVAILABLE CASH: ${format_num(self.portfolio.current_balance, 2)}
-TRADING LIMITS:
-- Minimum position: $10
-- Maximum positions: 5
-- Available cash protection: Never below ${format_num(self.portfolio.current_balance * 0.10, 2)}
-- Position sizing: Automatic based on confidence (up to 40% of available cash)
+CURRENT RISK STATUS: {current_positions_count} positions open, ${format_num(total_margin_used, 2)} margin used, ${format_num(risk_capacity_remaining, 2)} risk capacity remaining
+MAX POSITIONS: {max_positions}, MAX RISK PER TRADE: ${format_num(dynamic_risk_limit, 2)} (25% of ${format_num(self.portfolio.total_value, 2)} portfolio)
+IMPORTANT: When opening new positions, ensure total risk does not exceed ${format_num(dynamic_risk_limit, 2)} and position count does not exceed {max_positions}.
 
 {'='*20} HERE IS YOUR ACCOUNT INFORMATION & PERFORMANCE {'='*20}
 
@@ -2300,27 +2202,6 @@ Current live positions & performance:"""
 
                 print("\n🔍 CHAIN_OF_THOUGHTS:\n", thoughts)
                 print("\n🎯 AI TRADING DECISIONS:", json.dumps(decisions, indent=2) if decisions else "{}")
-                
-                # KADEMELİ POZİSYON SİSTEMİ: Cycle bazlı pozisyon limiti
-                max_positions_for_cycle = self.get_max_positions_for_cycle(cycle_number)
-                current_positions = len(self.portfolio.positions)
-                
-                if current_positions >= max_positions_for_cycle:
-                    print(f"🛡️ POSITION LIMIT REACHED (Cycle {cycle_number}): Max {max_positions_for_cycle} positions allowed")
-                    # Pozisyon limiti dolduysa yeni entry sinyallerini hold'a çevir
-                    filtered_decisions = {}
-                    for coin, trade in decisions.items():
-                        if isinstance(trade, dict):
-                            signal = trade.get('signal')
-                            if signal in ['buy_to_enter', 'sell_to_enter']:
-                                print(f"   ⚠️ {coin} {signal} → HOLD (Position limit: {max_positions_for_cycle})")
-                                filtered_decisions[coin] = {'signal': 'hold', 'justification': f'Position limit reached - Cycle {cycle_number} (max {max_positions_for_cycle} positions)'}
-                            else:
-                                filtered_decisions[coin] = trade
-                        else:
-                            filtered_decisions[coin] = trade
-                    decisions = filtered_decisions
-                    thoughts += f"\n[Position Limit: Cycle {cycle_number} - Max {max_positions_for_cycle} positions allowed]"
             else:
                  print("ℹ️ Skipping AI analysis due to auto TP/SL closure.")
 
@@ -2409,60 +2290,8 @@ Current live positions & performance:"""
                 entry = pos.get('entry_price', 0.0); qty = pos.get('quantity', 0.0)
                 print(f"  {coin} ({direction} {leverage}x): {format_num(qty, 4)} units | Notional ${format_num(notional, 2)} | Entry: ${format_num(entry, 4)} | PnL: {pnl_sign}${format_num(pnl, 2)} | Liq Est: ${format_num(liq, 4)}")
 
-    def start_tp_sl_monitoring(self):
-        """Start TP/SL monitoring timer that runs every 1 minute"""
-        if self.tp_sl_timer and self.tp_sl_timer.is_alive():
-            print("ℹ️ TP/SL monitoring already running")
-            return
-        
-        self.is_running = True
-        self.tp_sl_timer = threading.Thread(target=self._tp_sl_monitoring_loop, daemon=True)
-        self.tp_sl_timer.start()
-        print("✅ TP/SL monitoring started (1 minute interval)")
-
-    def stop_tp_sl_monitoring(self):
-        """Stop TP/SL monitoring timer"""
-        self.is_running = False
-        if self.tp_sl_timer and self.tp_sl_timer.is_alive():
-            self.tp_sl_timer.join(timeout=5)
-            print("🛑 TP/SL monitoring stopped")
-        else:
-            print("ℹ️ TP/SL monitoring was not running")
-
-    def _tp_sl_monitoring_loop(self):
-        """Background thread that checks TP/SL every 1 minute"""
-        print("🔄 TP/SL monitoring loop started")
-        while self.is_running:
-            try:
-                # Get current prices
-                real_prices = self.market_data.get_all_real_prices()
-                valid_prices = {k: v for k, v in real_prices.items() if isinstance(v, (int, float)) and v > 0}
-                
-                if valid_prices:
-                    # Update portfolio prices
-                    self.portfolio.update_prices(valid_prices)
-                    
-                    # Check and execute TP/SL
-                    positions_closed = self.portfolio.check_and_execute_tp_sl(valid_prices)
-                    
-                    if positions_closed:
-                        print(f"⏰ 1-MINUTE TP/SL CHECK: Positions closed")
-                    else:
-                        print(f"⏰ 1-MINUTE TP/SL CHECK: No triggers")
-                else:
-                    print("⚠️ TP/SL monitoring: No valid prices available")
-                
-            except Exception as e:
-                print(f"❌ TP/SL monitoring error: {e}")
-            
-            # Wait 1 minute before next check
-            for _ in range(60):
-                if not self.is_running:
-                    break
-                time.sleep(1)
-
     def run_simulation(self, total_duration_hours: int = 168, cycle_interval_minutes: int = 2):
-        """Run the simulation with dynamic cycle frequency and TP/SL monitoring"""
+        """Run the simulation with dynamic cycle frequency"""
         print(f"🚀 ALPHA ARENA - DEEPSEEK INTEGRATION (V{VERSION})")
         print(f"💡 Simulating with ${format_num(self.portfolio.initial_balance, 2)} budget for {total_duration_hours} hours.")
         print(f"   Trading: {', '.join(self.market_data.available_coins)}")
@@ -2471,36 +2300,25 @@ Current live positions & performance:"""
         print(f"   Cycle History File: {self.portfolio.cycle_history_file}")
         print(f"   Override File Check: {self.portfolio.override_file}")
         print(f"   Dynamic Cycle Frequency: Enabled (2-4 minutes based on volatility)")
-        print(f"   TP/SL Monitoring: Enabled (1 minute interval)")
-
-        # Start TP/SL monitoring
-        self.start_tp_sl_monitoring()
 
         end_time = datetime.now() + timedelta(hours=total_duration_hours)
         start_cycle = len(self.portfolio.cycle_history) + 1
         print(f"   Resuming from Cycle {start_cycle}...")
         self.invocation_count = start_cycle - 1; current_cycle_number = start_cycle - 1
 
-        try:
-            while datetime.now() < end_time:
-                current_cycle_number += 1; cycle_start_time = time.time()
-                
-                # Calculate dynamic cycle frequency
-                dynamic_cycle_interval = self.calculate_optimal_cycle_frequency()
-                print(f"🔄 Dynamic cycle frequency: {dynamic_cycle_interval} seconds ({dynamic_cycle_interval/60:.1f} minutes)")
-                
-                self.run_trading_cycle(current_cycle_number)
-                if datetime.now() >= end_time: break
-                elapsed_time = time.time() - cycle_start_time
-                sleep_time = max(0, dynamic_cycle_interval - elapsed_time)
-                print(f"\n⏳ Cycle {current_cycle_number} complete in {format_num(elapsed_time,2)}s. Next cycle in {format_num(sleep_time/60, 2)} mins... (Ctrl+C to stop)")
-                time.sleep(max(sleep_time, 0.5))
-
-        except KeyboardInterrupt:
-            print("\n⏹️ Program stopped by user.")
-        finally:
-            # Stop TP/SL monitoring
-            self.stop_tp_sl_monitoring()
+        while datetime.now() < end_time:
+            current_cycle_number += 1; cycle_start_time = time.time()
+            
+            # Calculate dynamic cycle frequency
+            dynamic_cycle_interval = self.calculate_optimal_cycle_frequency()
+            print(f"🔄 Dynamic cycle frequency: {dynamic_cycle_interval} seconds ({dynamic_cycle_interval/60:.1f} minutes)")
+            
+            self.run_trading_cycle(current_cycle_number)
+            if datetime.now() >= end_time: break
+            elapsed_time = time.time() - cycle_start_time
+            sleep_time = max(0, dynamic_cycle_interval - elapsed_time)
+            print(f"\n⏳ Cycle {current_cycle_number} complete in {format_num(elapsed_time,2)}s. Next cycle in {format_num(sleep_time/60, 2)} mins... (Ctrl+C to stop)")
+            time.sleep(max(sleep_time, 0.5))
 
         print(f"\n{'='*80}\n🏁 SIMULATION COMPLETED\n{'='*80}"); self.show_status()
 
