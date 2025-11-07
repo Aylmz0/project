@@ -2578,6 +2578,32 @@ class AlphaArenaDeepSeek:
             formatted += f"  • {suggestion}\n"
         return formatted
 
+    def format_trend_reversal_analysis(self, trend_reversal_analysis: Dict) -> str:
+        """Format trend reversal analysis for prompt"""
+        if not trend_reversal_analysis or 'error' in trend_reversal_analysis:
+            return "Trend reversal analysis: No data available"
+        
+        formatted = ""
+        for coin, analysis in trend_reversal_analysis.items():
+            if coin == 'error':
+                continue
+                
+            reversal_signals = analysis.get('reversal_signals', [])
+            if not reversal_signals:
+                continue
+                
+            formatted += f"\n{coin} TREND REVERSAL SIGNALS:\n"
+            for signal in reversal_signals:
+                signal_type = signal.get('type', 'Unknown')
+                strength = signal.get('strength', 'Unknown')
+                description = signal.get('description', 'No description')
+                formatted += f"  • {signal_type} ({strength}): {description}\n"
+        
+        if not formatted:
+            return "Trend reversal analysis: No reversal signals detected"
+        
+        return formatted
+
     def format_list(self, lst, precision=4):
         """Helper function to format lists for prompt display"""
         if not isinstance(lst, list): return []
@@ -2595,6 +2621,11 @@ class AlphaArenaDeepSeek:
         # Get real-time counter-trade analysis for all coins
         counter_trade_analysis = self.get_real_time_counter_trade_analysis()
         
+        # Get trend reversal detection for all coins
+        from performance_monitor import PerformanceMonitor
+        performance_monitor = PerformanceMonitor()
+        trend_reversal_analysis = performance_monitor.detect_trend_reversal_for_all_coins(self.market_data.available_coins)
+        
         prompt = f"""
 USER_PROMPT:
 It has been {minutes_running} minutes since you started trading. The current time is {current_time} and you've been invoked {self.invocation_count} times. Below, we are providing you with a variety of state data, price data, and predictive signals so you can discover alpha. Below that is your current account information, value, performance, positions, etc.
@@ -2607,6 +2638,12 @@ Timeframes note: Unless stated otherwise in a section title, intraday series are
 This section provides real-time counter-trade analysis to help you identify high-risk/reward opportunities. Counter-trades require stronger confirmation but can be profitable.
 
 {counter_trade_analysis}
+
+{'='*20} TREND REVERSAL DETECTION {'='*20}
+
+This section provides trend reversal detection analysis to help you identify potential trend changes early.
+
+{self.format_trend_reversal_analysis(trend_reversal_analysis)}
 
 {'='*20} ENHANCED DECISION CONTEXT (Non-binding suggestions) {'='*20}
 
