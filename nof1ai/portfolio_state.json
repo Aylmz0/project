@@ -1,5 +1,5 @@
 {
-    "current_balance": 65.39448811447751,
+    "current_balance": 150.8341992425504,
     "positions": {
         "SOL": {
             "symbol": "SOL",
@@ -7,8 +7,8 @@
             "quantity": 1.953050520478175,
             "entry_price": 156.21,
             "entry_time": "2025-11-07T04:08:11.706362",
-            "current_price": 157.37,
-            "unrealized_pnl": -2.2655386037546763,
+            "current_price": 157.53,
+            "unrealized_pnl": -2.5780266870311777,
             "notional_usd": 305.08602180389573,
             "margin_usd": 30.508602180389573,
             "leverage": 10,
@@ -31,8 +31,8 @@
             "quantity": 141.88763243377312,
             "entry_price": 2.2145,
             "entry_time": "2025-11-07T04:42:54.868919",
-            "current_price": 2.2296,
-            "unrealized_pnl": -2.1425032497499585,
+            "current_price": 2.2275,
+            "unrealized_pnl": -1.8445392216390364,
             "notional_usd": 314.2101620245906,
             "margin_usd": 31.42101620245906,
             "leverage": 10,
@@ -48,84 +48,12 @@
             "tp_oid": -1,
             "entry_oid": -1,
             "wait_for_fill": false
-        },
-        "LINK": {
-            "symbol": "LINK",
-            "direction": "long",
-            "quantity": 26.162049922316374,
-            "entry_price": 15.02,
-            "entry_time": "2025-11-07T05:14:44.755538",
-            "current_price": 15.05,
-            "unrealized_pnl": 0.784861497669521,
-            "notional_usd": 392.95398983319194,
-            "margin_usd": 39.295398983319195,
-            "leverage": 10,
-            "liquidation_price": 13.6682,
-            "confidence": 0.8200000000000001,
-            "exit_plan": {
-                "profit_target": 15.45,
-                "stop_loss": 14.85,
-                "invalidation_condition": "If 4h price closes below 4h EMA20 (15.1268)"
-            },
-            "risk_usd": 4.447548486793782,
-            "sl_oid": -1,
-            "tp_oid": -1,
-            "entry_oid": -1,
-            "wait_for_fill": false
-        },
-        "DOGE": {
-            "symbol": "DOGE",
-            "direction": "long",
-            "quantity": 1641.0582912398147,
-            "entry_price": 0.16585,
-            "entry_time": "2025-11-07T05:18:43.861262",
-            "current_price": 0.16588,
-            "unrealized_pnl": 0.04923174873719813,
-            "notional_usd": 272.1695176021233,
-            "margin_usd": 27.21695176021233,
-            "leverage": 10,
-            "liquidation_price": 0.15092350000000002,
-            "confidence": 0.77,
-            "exit_plan": {
-                "profit_target": 0.172,
-                "stop_loss": 0.162,
-                "invalidation_condition": "If 4h price closes below 4h EMA20 (0.1660)"
-            },
-            "risk_usd": 6.318074421273274,
-            "sl_oid": -1,
-            "tp_oid": -1,
-            "entry_oid": -1,
-            "wait_for_fill": false
-        },
-        "ADA": {
-            "symbol": "ADA",
-            "direction": "long",
-            "quantity": 328.4919610354309,
-            "entry_price": 0.5433,
-            "entry_time": "2025-11-07T05:18:47.818470",
-            "current_price": 0.5435,
-            "unrealized_pnl": 0.06569839220707895,
-            "notional_usd": 178.46968243054962,
-            "margin_usd": 17.846968243054963,
-            "leverage": 10,
-            "liquidation_price": 0.49440300000000004,
-            "confidence": 0.67,
-            "exit_plan": {
-                "profit_target": 0.565,
-                "stop_loss": 0.535,
-                "invalidation_condition": "If 4h price closes below 4h EMA20 (0.5439)"
-            },
-            "risk_usd": 2.726483276594068,
-            "sl_oid": -1,
-            "tp_oid": -1,
-            "entry_oid": -1,
-            "wait_for_fill": false
         }
     },
-    "total_value": 208.1751752690218,
-    "total_return": 4.087587634510896,
+    "total_value": 208.3412517167288,
+    "total_return": 4.170625858364403,
     "initial_balance": 200.0,
-    "trade_count": 31,
-    "last_updated": "2025-11-07T05:29:12.731607",
-    "sharpe_ratio": 1.8686966447030278
+    "trade_count": 34,
+    "last_updated": "2025-11-07T05:45:57.172040",
+    "sharpe_ratio": -2.286596818463601
 }

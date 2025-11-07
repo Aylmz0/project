@@ -401,5 +401,44 @@
         "exit_time": "2025-11-07T05:09:38.144052",
         "leverage": 10,
         "close_reason": "Loss cutting at 1.0% loss (-1.1%)"
+    },
+    {
+        "symbol": "DOGE",
+        "direction": "long",
+        "entry_price": 0.16585,
+        "exit_price": 0.16593,
+        "quantity": 1641.0582912398147,
+        "notional_usd": 272.1695176021233,
+        "pnl": 0.13128466329917982,
+        "entry_time": "2025-11-07T05:18:43.861262",
+        "exit_time": "2025-11-07T05:30:41.760572",
+        "leverage": 10,
+        "close_reason": "AI close_position signal"
+    },
+    {
+        "symbol": "LINK",
+        "direction": "long",
+        "entry_price": 15.02,
+        "exit_price": 15.05,
+        "quantity": 26.162049922316374,
+        "notional_usd": 392.95398983319194,
+        "pnl": 0.784861497669521,
+        "entry_time": "2025-11-07T05:14:44.755538",
+        "exit_time": "2025-11-07T05:30:41.763678",
+        "leverage": 10,
+        "close_reason": "AI close_position signal"
+    },
+    {
+        "symbol": "ADA",
+        "direction": "long",
+        "entry_price": 0.5433,
+        "exit_price": 0.5438,
+        "quantity": 328.4919610354309,
+        "notional_usd": 178.46968243054962,
+        "pnl": 0.16424598051769737,
+        "entry_time": "2025-11-07T05:18:47.818470",
+        "exit_time": "2025-11-07T05:30:50.878712",
+        "leverage": 10,
+        "close_reason": "Position at maximum limit ($19.92)"
     }
 ]
