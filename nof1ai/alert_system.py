@@ -61,7 +61,6 @@ class AlertManager:
         self.price_thresholds: Dict[str, Dict[str, float]] = {}
         self.risk_limits: Dict[str, float] = {
             'max_portfolio_risk': 0.02,  # 2%
-            'max_position_concentration': 0.3,  # 30%
             'max_drawdown': 0.1,  # 10%
         }
         
@@ -154,23 +153,8 @@ class AlertManager:
             )
             alerts_triggered.append(alert)
         
-        # Position concentration monitoring
-        for symbol, position in positions.items():
-            concentration = self._calculate_position_concentration(position, positions)
-            if concentration > self.risk_limits['max_position_concentration']:
-                alert = self.create_alert(
-                    alert_type=AlertType.RISK_LIMIT,
-                    level=AlertLevel.WARNING,
-                    title="Position Concentration Alert",
-                    message=f"{symbol} concentration ({concentration:.2%}) exceeds limit ({self.risk_limits['max_position_concentration']:.2%})",
-                    symbol=symbol,
-                    data={
-                        'current_concentration': concentration,
-                        'concentration_limit': self.risk_limits['max_position_concentration'],
-                        'position_notional': position.get('notional_usd', 0)
-                    }
-                )
-                alerts_triggered.append(alert)
+        # Position concentration monitoring - DISABLED
+        # Concentration limits have been removed to allow more aggressive position sizing
         
         return alerts_triggered
     

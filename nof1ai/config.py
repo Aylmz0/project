@@ -46,16 +46,16 @@ class Config:
     }
     MARKET_REGIME_MULTIPLIERS: dict = {
         'BULLISH': 1.0,
-        'BEARISH': 0.7,
-        'NEUTRAL': 0.85
+        'BEARISH': 0.8,
+        'NEUTRAL': 0.9
     }
     COIN_SPECIFIC_STOP_LOSS_MULTIPLIERS: dict = {
-        'SOL': 1.0,   # Daha agresif stop (volatile)
-        'ADA': 1.2,   # Normal stop (stabil)
-        'XRP': 1.1,   # Orta stop
-        'LINK': 1.1,  # Orta stop
-        'DOGE': 1.0,  # Daha agresif stop (volatile)
-        'JASMY': 1.0  # Daha agresif stop (volatile)
+        'SOL': 1.0,   # AI'nın SL değerine saygı duy
+        'ADA': 1.0,   # AI'nın SL değerine saygı duy
+        'XRP': 1.0,   # AI'nın SL değerine saygı duy
+        'LINK': 1.0,  # AI'nın SL değerine saygı duy
+        'DOGE': 1.0,  # AI'nın SL değerine saygı duy
+        'JASMY': 1.0  # AI'nın SL değerine saygı duy
     }
     
     # Dynamic Confidence-Based Position Sizing
