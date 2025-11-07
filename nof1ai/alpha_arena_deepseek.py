@@ -966,8 +966,19 @@ class PortfolioManager:
                 'take3': 0.75     # %75 profit al
             }
 
+    def get_dynamic_stop_loss_percentage(self, total_portfolio_value: float) -> float:
+        """Get dynamic stop-loss percentage based on portfolio value"""
+        if total_portfolio_value < 300:
+            return 0.01  # %1.0
+        elif total_portfolio_value < 400:
+            return 0.008 # %0.8
+        elif total_portfolio_value < 500:
+            return 0.007 # %0.7
+        else:
+            return 0.005 # %0.5
+
     def enhanced_exit_strategy(self, position: Dict, current_price: float) -> Dict[str, Any]:
-        """Enhanced exit strategy with dynamic profit taking and loss cutting based on notional size"""
+        """Enhanced exit strategy with dynamic profit taking and KADEMELİ loss cutting"""
         entry_price = position['entry_price']
         direction = position['direction']
         stop_loss = position['exit_plan']['stop_loss']
@@ -985,19 +996,21 @@ class PortfolioManager:
             print(f"🛑 Position at maximum limit: ${current_margin:.2f} <= ${max_limit:.2f}. Closing position.")
             return {"action": "close_position", "reason": f"Position at maximum limit (${max_limit:.2f})"}
         
-        # --- LOSS CUTTING MECHANISM (1.0% loss) - SIKIŞTIRILMIŞ ---
+        # --- KADEMELİ LOSS CUTTING MECHANISM ---
+        dynamic_stop_loss_percent = self.get_dynamic_stop_loss_percentage(self.total_value)
+        
         if direction == 'long':
             unrealized_pnl_percent = (current_price - entry_price) / entry_price
-            # Check for 1.0% loss - SIKIŞTIRILMIŞ
-            if unrealized_pnl_percent <= -0.01:  # 1.0% loss (sıkıştırılmış)
-                print(f"🛑 LOSS CUTTING: {direction} {position['symbol']} at {unrealized_pnl_percent*100:.1f}% loss. Closing position.")
-                return {"action": "close_position", "reason": f"Loss cutting at 1.0% loss ({unrealized_pnl_percent*100:.1f}%)"}
+            # Check for dynamic loss percentage
+            if unrealized_pnl_percent <= -dynamic_stop_loss_percent:
+                print(f"🛑 KADEMELİ LOSS CUTTING: {direction} {position['symbol']} at {unrealized_pnl_percent*100:.1f}% loss (threshold: {dynamic_stop_loss_percent*100:.1f}%). Closing position.")
+                return {"action": "close_position", "reason": f"Loss cutting at {dynamic_stop_loss_percent*100:.1f}% loss ({unrealized_pnl_percent*100:.1f}%)"}
         elif direction == 'short':
             unrealized_pnl_percent = (entry_price - current_price) / entry_price
-            # Check for 1.0% loss - SIKIŞTIRILMIŞ
-            if unrealized_pnl_percent <= -0.01:  # 1.0% loss (sıkıştırılmış)
-                print(f"🛑 LOSS CUTTING: {direction} {position['symbol']} at {unrealized_pnl_percent*100:.1f}% loss. Closing position.")
-                return {"action": "close_position", "reason": f"Loss cutting at 1.0% loss ({unrealized_pnl_percent*100:.1f}%)"}
+            # Check for dynamic loss percentage
+            if unrealized_pnl_percent <= -dynamic_stop_loss_percent:
+                print(f"🛑 KADEMELİ LOSS CUTTING: {direction} {position['symbol']} at {unrealized_pnl_percent*100:.1f}% loss (threshold: {dynamic_stop_loss_percent*100:.1f}%). Closing position.")
+                return {"action": "close_position", "reason": f"Loss cutting at {dynamic_stop_loss_percent*100:.1f}% loss ({unrealized_pnl_percent*100:.1f}%)"}
         
         # Get dynamic profit levels based on notional size
         profit_levels = self.get_profit_levels_by_notional(notional_usd)
@@ -1520,7 +1533,7 @@ class PortfolioManager:
                         stop_loss = current_price + ((stop_loss - current_price) * stop_loss_multiplier)
                     print(f"📊 Dynamic Stop-Loss: {coin} için {stop_loss_multiplier}x multiplier uygulandı")
                 
-                # 5. Counter-Trend Detection (Sadece bilgilendirme - blokaj yok)
+                # 5. Counter-Trend Detection (Sadece counter-trade'ler için validation)
                 # Get indicators for counter-trend detection
                 try:
                     indicators_3m = self.market_data.get_technical_indicators(coin, '3m')
@@ -1530,7 +1543,7 @@ class PortfolioManager:
                     if is_counter_trend:
                         print(f"⚠️ COUNTER-TREND DETECTED: {coin} - AI kararına saygı duyuluyor")
                         
-                        # Counter-trade koşullarını kontrol et (sadece bilgilendirme)
+                        # Sadece counter-trade'ler için validation yap
                         validation_result = self.validate_counter_trade(coin, signal, indicators_3m, indicators_4h)
                         
                         if validation_result['valid']:
@@ -1539,6 +1552,9 @@ class PortfolioManager:
                         else:
                             print(f"⚠️ COUNTER-TRADE WEAK: {validation_result['reason']}")
                             print(f"   Conditions met: {validation_result.get('conditions_met', [])}")
+                    else:
+                        # Counter-trade değilse validation yapma - sadece trend-following trade
+                        print(f"✅ TREND-FOLLOWING: {coin} - 4h trend ile uyumlu trade")
                             
                 except Exception as e:
                     print(f"⚠️ Counter-trend detection failed for {coin}: {e}")
@@ -1716,13 +1732,13 @@ class AlphaArenaDeepSeek:
             return False
 
     def enhanced_trend_detection(self, coin: str) -> Dict[str, Any]:
-        """Enhanced trend detection with multiple timeframe analysis (Nof1AI Blog Style)"""
+        """Enhanced trend detection with simple trend strength and counter-trade detection"""
         try:
             indicators_4h = self.market_data.get_technical_indicators(coin, '4h')
             indicators_3m = self.market_data.get_technical_indicators(coin, '3m')
             
             if 'error' in indicators_4h or 'error' in indicators_3m:
-                return {'trend_strength': 0, 'trend_direction': 'UNCLEAR', 'ema_comparison': 'N/A', 'volume_confidence': 0.0}
+                return {'trend_strength': 0, 'trend_direction': 'NEUTRAL', 'ema_comparison': 'N/A', 'volume_confidence': 0.0}
             
             price_4h = indicators_4h.get('current_price')
             ema20_4h = indicators_4h.get('ema_20')
@@ -1733,6 +1749,7 @@ class AlphaArenaDeepSeek:
             # Nof1AI Blog Style: EMA20 vs EMA50 comparison
             ema_comparison = f"20-Period EMA: {format_num(ema20_4h)} vs. 50-Period EMA: {format_num(ema50_4h)}"
             
+            # Simple trend strength calculation (sadece counter-trade'ler için)
             trend_strength = 0
             trend_direction = 'NEUTRAL'
             
@@ -1758,18 +1775,302 @@ class AlphaArenaDeepSeek:
             # Volume Confirmation (Nof1AI Blog Style)
             volume_confidence = self.calculate_volume_confidence(coin)
             
+            # Counter-trade detection information
+            counter_trade_info = self.get_counter_trade_information(coin)
+            
             return {
                 'trend_strength': trend_strength,
                 'trend_direction': trend_direction,
                 'ema_comparison': ema_comparison,
                 'price_vs_ema20_4h': 'ABOVE' if price_4h > ema20_4h else 'BELOW',
                 'price_vs_ema20_3m': 'ABOVE' if price_3m > ema20_3m else 'BELOW',
-                'volume_confidence': volume_confidence
+                'volume_confidence': volume_confidence,
+                'counter_trade_info': counter_trade_info
             }
             
         except Exception as e:
             print(f"⚠️ Enhanced trend detection error for {coin}: {e}")
-            return {'trend_strength': 0, 'trend_direction': 'UNCLEAR', 'ema_comparison': 'ERROR', 'volume_confidence': 0.0}
+            return {'trend_strength': 0, 'trend_direction': 'NEUTRAL', 'ema_comparison': 'ERROR', 'volume_confidence': 0.0}
+
+    def get_counter_trade_information(self, coin: str) -> Dict[str, Any]:
+        """Get counter-trade information for AI decision making (information only, no blocking)"""
+        try:
+            indicators_4h = self.market_data.get_technical_indicators(coin, '4h')
+            indicators_3m = self.market_data.get_technical_indicators(coin, '3m')
+            
+            if 'error' in indicators_4h or 'error' in indicators_3m:
+                return {'counter_trade_risk': 'UNKNOWN', 'conditions_met': 0, 'total_conditions': 5}
+            
+            price_4h = indicators_4h.get('current_price')
+            ema20_4h = indicators_4h.get('ema_20')
+            price_3m = indicators_3m.get('current_price')
+            ema20_3m = indicators_3m.get('ema_20')
+            rsi_3m = indicators_3m.get('rsi_14', 50)
+            volume_3m = indicators_3m.get('volume', 0)
+            avg_volume_3m = indicators_3m.get('avg_volume', 1)
+            macd_3m = indicators_3m.get('macd', 0)
+            macd_signal_3m = indicators_3m.get('macd_signal', 0)
+            
+            # Determine 4h trend direction
+            trend_4h = "BULLISH" if price_4h > ema20_4h else "BEARISH"
+            
+            # Counter-trade conditions check
+            conditions_met = 0
+            total_conditions = 5
+            
+            # Condition 1: 3m trend alignment
+            if (trend_4h == "BULLISH" and price_3m < ema20_3m) or (trend_4h == "BEARISH" and price_3m > ema20_3m):
+                conditions_met += 1
+            
+            # Condition 2: Volume confirmation (>2x average)
+            volume_ratio = volume_3m / avg_volume_3m if avg_volume_3m > 0 else 0
+            if volume_ratio > 2.0:
+                conditions_met += 1
+            
+            # Condition 3: Extreme RSI
+            if (trend_4h == "BULLISH" and rsi_3m < 25) or (trend_4h == "BEARISH" and rsi_3m > 75):
+                conditions_met += 1
+            
+            # Condition 4: Strong technical levels (price near EMA)
+            price_ema_distance = abs(price_3m - ema20_3m) / price_3m * 100
+            if price_ema_distance < 1.0:
+                conditions_met += 1
+            
+            # Condition 5: MACD divergence
+            if (trend_4h == "BULLISH" and macd_3m > macd_signal_3m) or (trend_4h == "BEARISH" and macd_3m < macd_signal_3m):
+                conditions_met += 1
+            
+            # Determine counter-trade risk level
+            if conditions_met >= 4:
+                risk_level = "LOW_RISK"
+            elif conditions_met >= 3:
+                risk_level = "MEDIUM_RISK"
+            elif conditions_met >= 2:
+                risk_level = "HIGH_RISK"
+            else:
+                risk_level = "VERY_HIGH_RISK"
+            
+            return {
+                'counter_trade_risk': risk_level,
+                'conditions_met': conditions_met,
+                'total_conditions': total_conditions,
+                'trend_4h': trend_4h,
+                'trend_3m': "BULLISH" if price_3m > ema20_3m else "BEARISH",
+                'volume_ratio': round(volume_ratio, 2),
+                'rsi_3m': round(rsi_3m, 1),
+                'price_ema_distance': round(price_ema_distance, 2)
+            }
+            
+        except Exception as e:
+            print(f"⚠️ Counter-trade information error for {coin}: {e}")
+            return {'counter_trade_risk': 'ERROR', 'conditions_met': 0, 'total_conditions': 5}
+
+    def calculate_comprehensive_trend_strength(self, coin: str) -> Dict[str, Any]:
+        """Calculate comprehensive trend strength using 5 technical indicators with weighted scoring"""
+        try:
+            indicators_4h = self.market_data.get_technical_indicators(coin, '4h')
+            indicators_3m = self.market_data.get_technical_indicators(coin, '3m')
+            
+            if 'error' in indicators_4h or 'error' in indicators_3m:
+                return {'strength_score': 0, 'trend_direction': 'UNCLEAR', 'component_scores': {}}
+            
+            price_4h = indicators_4h.get('current_price')
+            ema20_4h = indicators_4h.get('ema_20')
+            ema50_4h = indicators_4h.get('ema_50')
+            rsi_4h = indicators_4h.get('rsi_14', 50)
+            macd_4h = indicators_4h.get('macd', 0)
+            volume_4h = indicators_4h.get('volume', 0)
+            avg_volume_4h = indicators_4h.get('avg_volume', 1)
+            
+            # 1. RSI Strength (20% weight)
+            rsi_strength = self.analyze_rsi_strength(rsi_4h)
+            
+            # 2. MACD Strength (25% weight - most important)
+            macd_strength = self.analyze_macd_strength(macd_4h)
+            
+            # 3. Volume Strength (15% weight)
+            volume_strength = self.analyze_volume_strength(volume_4h, avg_volume_4h)
+            
+            # 4. Bollinger Bands Strength (20% weight)
+            bb_strength = self.analyze_bollinger_bands_strength(indicators_4h)
+            
+            # 5. Moving Averages Strength (20% weight)
+            ma_strength = self.analyze_moving_averages_strength(price_4h, ema20_4h, ema50_4h)
+            
+            # Weighted average - each indicator has different importance
+            total_strength = (
+                rsi_strength * 0.20 +      # %20 ağırlık
+                macd_strength * 0.25 +     # %25 ağırlık (en önemli)
+                volume_strength * 0.15 +   # %15 ağırlık
+                bb_strength * 0.20 +       # %20 ağırlık
+                ma_strength * 0.20         # %20 ağırlık
+            )
+            
+            # Determine trend direction
+            trend_direction = self.determine_trend_direction(price_4h, ema20_4h, ema50_4h, rsi_4h, macd_4h)
+            
+            return {
+                'strength_score': total_strength,
+                'trend_direction': trend_direction,
+                'component_scores': {
+                    'rsi': rsi_strength,
+                    'macd': macd_strength, 
+                    'volume': volume_strength,
+                    'bollinger_bands': bb_strength,
+                    'moving_averages': ma_strength
+                },
+                'confidence_level': self.get_confidence_level(total_strength)
+            }
+            
+        except Exception as e:
+            print(f"⚠️ Comprehensive trend strength error for {coin}: {e}")
+            return {'strength_score': 0, 'trend_direction': 'UNCLEAR', 'component_scores': {}}
+
+    def analyze_rsi_strength(self, rsi: float) -> float:
+        """Analyze RSI strength (0-1 scale)"""
+        if rsi > 70:
+            return 0.9  # Overbought - strong trend continuation
+        elif rsi > 60:
+            return 0.7  # Bullish momentum
+        elif rsi > 50:
+            return 0.5  # Neutral bullish
+        elif rsi > 40:
+            return 0.3  # Neutral bearish
+        elif rsi > 30:
+            return 0.1  # Bearish momentum
+        else:
+            return 0.0  # Oversold - weak trend
+
+    def analyze_macd_strength(self, macd: float) -> float:
+        """Analyze MACD strength (0-1 scale)"""
+        if macd > 0.01:
+            return 1.0  # Strong bullish
+        elif macd > 0.005:
+            return 0.8  # Moderate bullish
+        elif macd > 0:
+            return 0.6  # Weak bullish
+        elif macd > -0.005:
+            return 0.4  # Weak bearish
+        elif macd > -0.01:
+            return 0.2  # Moderate bearish
+        else:
+            return 0.0  # Strong bearish
+
+    def analyze_volume_strength(self, volume: float, avg_volume: float) -> float:
+        """Analyze volume strength (0-1 scale)"""
+        if avg_volume <= 0:
+            return 0.0
+            
+        volume_ratio = volume / avg_volume
+        
+        if volume_ratio >= 2.0:
+            return 1.0  # Very high volume
+        elif volume_ratio >= 1.5:
+            return 0.8  # High volume
+        elif volume_ratio >= 1.0:
+            return 0.6  # Normal volume
+        elif volume_ratio >= 0.5:
+            return 0.3  # Low volume
+        else:
+            return 0.1  # Very low volume
+
+    def analyze_bollinger_bands_strength(self, indicators: Dict) -> float:
+        """Analyze Bollinger Bands strength (0-1 scale)"""
+        try:
+            price = indicators.get('current_price', 0)
+            ema20 = indicators.get('ema_20', price)
+            atr_14 = indicators.get('atr_14', 0)
+            
+            if atr_14 <= 0:
+                return 0.5  # Neutral if no volatility data
+                
+            # Calculate distance from EMA as percentage of ATR
+            distance = abs(price - ema20) / atr_14
+            
+            if distance > 2.0:
+                return 1.0  # Strong trend (price far from EMA)
+            elif distance > 1.0:
+                return 0.7  # Moderate trend
+            elif distance > 0.5:
+                return 0.4  # Weak trend
+            else:
+                return 0.2  # No trend (consolidation)
+                
+        except Exception as e:
+            print(f"⚠️ Bollinger Bands analysis error: {e}")
+            return 0.5
+
+    def analyze_moving_averages_strength(self, price: float, ema20: float, ema50: float) -> float:
+        """Analyze Moving Averages strength (0-1 scale)"""
+        try:
+            # EMA alignment strength
+            if ema20 > ema50 and price > ema20:
+                return 1.0  # Strong bullish alignment
+            elif ema20 < ema50 and price < ema20:
+                return 1.0  # Strong bearish alignment
+            elif ema20 > ema50:
+                return 0.6  # Weak bullish alignment
+            elif ema20 < ema50:
+                return 0.6  # Weak bearish alignment
+            else:
+                return 0.3  # No clear alignment
+                
+        except Exception as e:
+            print(f"⚠️ Moving Averages analysis error: {e}")
+            return 0.5
+
+    def determine_trend_direction(self, price: float, ema20: float, ema50: float, rsi: float, macd: float) -> str:
+        """Determine overall trend direction based on multiple indicators"""
+        bullish_signals = 0
+        bearish_signals = 0
+        
+        # Price vs EMA20
+        if price > ema20:
+            bullish_signals += 1
+        else:
+            bearish_signals += 1
+            
+        # EMA20 vs EMA50
+        if ema20 > ema50:
+            bullish_signals += 1
+        else:
+            bearish_signals += 1
+            
+        # RSI direction
+        if rsi > 50:
+            bullish_signals += 1
+        else:
+            bearish_signals += 1
+            
+        # MACD direction
+        if macd > 0:
+            bullish_signals += 1
+        else:
+            bearish_signals += 1
+            
+        if bullish_signals >= 3:
+            return "STRONG_BULLISH"
+        elif bearish_signals >= 3:
+            return "STRONG_BEARISH"
+        elif bullish_signals > bearish_signals:
+            return "WEAK_BULLISH"
+        elif bearish_signals > bullish_signals:
+            return "WEAK_BEARISH"
+        else:
+            return "NEUTRAL"
+
+    def get_confidence_level(self, strength_score: float) -> str:
+        """Get confidence level based on trend strength score"""
+        if strength_score > 0.75:
+            return "VERY_HIGH"
+        elif strength_score > 0.60:
+            return "HIGH" 
+        elif strength_score > 0.45:
+            return "MEDIUM"
+        elif strength_score > 0.30:
+            return "LOW"
+        else:
+            return "VERY_LOW"
 
     def calculate_volume_confidence(self, coin: str) -> float:
         """Calculate volume confidence based on current vs average volume (Nof1AI Blog Style)"""
@@ -2161,6 +2462,112 @@ class AlphaArenaDeepSeek:
         
         return f"Total Risk: ${total_risk:.2f}, Risk %: {risk_percentage:.1f}%, Positions: {position_count}"
 
+    def get_real_time_counter_trade_analysis(self) -> str:
+        """Get real-time counter-trade analysis for all coins"""
+        analysis = []
+        
+        for coin in self.market_data.available_coins:
+            try:
+                # Get indicators for both timeframes
+                indicators_3m = self.market_data.get_technical_indicators(coin, '3m')
+                indicators_4h = self.market_data.get_technical_indicators(coin, '4h')
+                
+                if 'error' in indicators_3m or 'error' in indicators_4h:
+                    analysis.append(f"❌ {coin}: Data error - cannot analyze counter-trade conditions")
+                    continue
+                
+                # Extract key indicators
+                price_4h = indicators_4h.get('current_price')
+                ema20_4h = indicators_4h.get('ema_20')
+                price_3m = indicators_3m.get('current_price')
+                ema20_3m = indicators_3m.get('ema_20')
+                rsi_3m = indicators_3m.get('rsi_14', 50)
+                volume_3m = indicators_3m.get('volume', 0)
+                avg_volume_3m = indicators_3m.get('avg_volume', 1)
+                macd_3m = indicators_3m.get('macd', 0)
+                macd_signal_3m = indicators_3m.get('macd_signal', 0)
+                
+                # Determine 4h trend direction
+                trend_4h = "BULLISH" if price_4h > ema20_4h else "BEARISH"
+                trend_3m = "BULLISH" if price_3m > ema20_3m else "BEARISH"
+                
+                # Counter-trade conditions analysis
+                conditions_met = 0
+                total_conditions = 5
+                conditions_details = []
+                
+                # Condition 1: 3m trend alignment
+                if (trend_4h == "BULLISH" and trend_3m == "BEARISH") or (trend_4h == "BEARISH" and trend_3m == "BULLISH"):
+                    conditions_met += 1
+                    conditions_details.append("✅ 3m trend alignment")
+                else:
+                    conditions_details.append("❌ 3m trend misalignment")
+                
+                # Condition 2: Volume confirmation (>2x average)
+                volume_ratio = volume_3m / avg_volume_3m if avg_volume_3m > 0 else 0
+                if volume_ratio > 2.0:
+                    conditions_met += 1
+                    conditions_details.append(f"✅ Volume {volume_ratio:.1f}x average")
+                else:
+                    conditions_details.append(f"❌ Volume {volume_ratio:.1f}x average (need >2x)")
+                
+                # Condition 3: Extreme RSI
+                if (trend_4h == "BULLISH" and rsi_3m < 25) or (trend_4h == "BEARISH" and rsi_3m > 75):
+                    conditions_met += 1
+                    conditions_details.append(f"✅ Extreme RSI: {rsi_3m:.1f}")
+                else:
+                    conditions_details.append(f"❌ RSI: {rsi_3m:.1f} (need <25 for LONG, >75 for SHORT)")
+                
+                # Condition 4: Strong technical levels (price near EMA)
+                price_ema_distance = abs(price_3m - ema20_3m) / price_3m * 100
+                if price_ema_distance < 1.0:
+                    conditions_met += 1
+                    conditions_details.append(f"✅ Strong technical level ({price_ema_distance:.2f}% from EMA)")
+                else:
+                    conditions_details.append(f"❌ Weak technical level ({price_ema_distance:.2f}% from EMA)")
+                
+                # Condition 5: MACD divergence
+                if (trend_4h == "BULLISH" and macd_3m > macd_signal_3m) or (trend_4h == "BEARISH" and macd_3m < macd_signal_3m):
+                    conditions_met += 1
+                    conditions_details.append("✅ MACD divergence")
+                else:
+                    conditions_details.append("❌ No MACD divergence")
+                
+                # Determine counter-trade risk level and recommendation
+                if conditions_met >= 4:
+                    risk_level = "LOW_RISK"
+                    recommendation = "STRONG COUNTER-TRADE SETUP - Consider with high confidence (>0.75)"
+                elif conditions_met >= 3:
+                    risk_level = "MEDIUM_RISK"
+                    recommendation = "MODERATE COUNTER-TRADE SETUP - Consider with medium confidence (>0.65)"
+                elif conditions_met >= 2:
+                    risk_level = "HIGH_RISK"
+                    recommendation = "WEAK COUNTER-TRADE SETUP - Avoid or use very low confidence"
+                else:
+                    risk_level = "VERY_HIGH_RISK"
+                    recommendation = "NO COUNTER-TRADE SETUP - Focus on trend-following"
+                
+                # Build analysis string for this coin
+                coin_analysis = f"""
+{coin} COUNTER-TRADE ANALYSIS:
+  4h Trend: {trend_4h} | 3m Trend: {trend_3m}
+  Conditions Met: {conditions_met}/{total_conditions}
+  Risk Level: {risk_level}
+  Recommendation: {recommendation}
+  Conditions:
+    {chr(10).join(f'    {detail}' for detail in conditions_details)}
+"""
+                analysis.append(coin_analysis)
+                
+            except Exception as e:
+                analysis.append(f"❌ {coin}: Analysis error - {str(e)}")
+        
+        # Combine all analyses
+        if not analysis:
+            return "No counter-trade analysis available due to data errors"
+        
+        return "\n".join(analysis)
+
     def format_suggestions(self, suggestions: List[str]) -> str:
         """Format suggestions for prompt"""
         if not suggestions:
@@ -2185,12 +2592,21 @@ class AlphaArenaDeepSeek:
         # Get enhanced context for AI decision making
         enhanced_context = self.get_enhanced_context()
         
+        # Get real-time counter-trade analysis for all coins
+        counter_trade_analysis = self.get_real_time_counter_trade_analysis()
+        
         prompt = f"""
 USER_PROMPT:
 It has been {minutes_running} minutes since you started trading. The current time is {current_time} and you've been invoked {self.invocation_count} times. Below, we are providing you with a variety of state data, price data, and predictive signals so you can discover alpha. Below that is your current account information, value, performance, positions, etc.
 
 ALL OF THE PRICE OR SIGNAL DATA BELOW IS ORDERED: OLDEST → NEWEST
 Timeframes note: Unless stated otherwise in a section title, intraday series are provided at 3‑minute intervals. If a coin uses a different interval, it is explicitly stated in that coin's section.
+
+{'='*20} REAL-TIME COUNTER-TRADE ANALYSIS {'='*20}
+
+This section provides real-time counter-trade analysis to help you identify high-risk/reward opportunities. Counter-trades require stronger confirmation but can be profitable.
+
+{counter_trade_analysis}
 
 {'='*20} ENHANCED DECISION CONTEXT (Non-binding suggestions) {'='*20}
 
