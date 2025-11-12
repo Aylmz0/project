@@ -1,0 +1,132 @@
+{
+    "current_balance": 124.85053369,
+    "positions": {
+        "SOL": {
+            "symbol": "SOL",
+            "direction": "short",
+            "quantity": 1.03,
+            "entry_price": 151.44,
+            "current_price": 152.31,
+            "unrealized_pnl": -0.8961000000000047,
+            "notional_usd": 156.354,
+            "margin_usd": 0.0,
+            "leverage": 10,
+            "entry_time": 1762976106088,
+            "liquidation_price": 303.98636963,
+            "confidence": 0.0,
+            "exit_plan": {
+                "stop_loss": 154.0,
+                "profit_target": 148.5,
+                "invalidation_condition": "If 1h price closes above 1h EMA20=156.33"
+            },
+            "loss_cycle_count": 0,
+            "risk_usd": 0.0,
+            "exchange_metadata": {
+                "symbol": "SOLUSDT",
+                "raw": {
+                    "symbol": "SOLUSDT",
+                    "positionAmt": "-1.03",
+                    "entryPrice": "151.44",
+                    "breakEvenPrice": "151.36428",
+                    "markPrice": "151.80000000",
+                    "unRealizedProfit": "-0.37080000",
+                    "liquidationPrice": "303.98636963",
+                    "leverage": "10",
+                    "maxNotionalValue": "40000000",
+                    "marginType": "cross",
+                    "isolatedMargin": "0.00000000",
+                    "isAutoAddMargin": "false",
+                    "positionSide": "BOTH",
+                    "notional": "-156.35400000",
+                    "isolatedWallet": "0",
+                    "updateTime": 1762976106088,
+                    "isolated": false,
+                    "adlQuantile": 1
+                }
+            }
+        },
+        "LINK": {
+            "symbol": "LINK",
+            "direction": "short",
+            "quantity": 12.52,
+            "entry_price": 14.954,
+            "current_price": 15.04,
+            "unrealized_pnl": -1.0767199999999815,
+            "notional_usd": 187.46196,
+            "margin_usd": 0.0,
+            "leverage": 10,
+            "entry_time": 1762976101745,
+            "liquidation_price": 27.49312466,
+            "confidence": 0.0,
+            "exit_plan": {
+                "stop_loss": 15.25,
+                "profit_target": 14.65,
+                "invalidation_condition": "If 1h price closes above 1h EMA20=15.52"
+            },
+            "loss_cycle_count": 0,
+            "risk_usd": 0.0,
+            "exchange_metadata": {
+                "symbol": "LINKUSDT",
+                "raw": {
+                    "symbol": "LINKUSDT",
+                    "positionAmt": "-12.52",
+                    "entryPrice": "14.954",
+                    "breakEvenPrice": "14.946523",
+                    "markPrice": "14.97300000",
+                    "unRealizedProfit": "-0.23788000",
+                    "liquidationPrice": "27.49312466",
+                    "leverage": "10",
+                    "maxNotionalValue": "8000000",
+                    "marginType": "cross",
+                    "isolatedMargin": "0.00000000",
+                    "isAutoAddMargin": "false",
+                    "positionSide": "BOTH",
+                    "notional": "-187.46196000",
+                    "isolatedWallet": "0",
+                    "updateTime": 1762976101745,
+                    "isolated": false,
+                    "adlQuantile": 1
+                }
+            }
+        }
+    },
+    "total_value": 122.87771369000002,
+    "total_return": -38.56114315499999,
+    "initial_balance": 200.0,
+    "trade_count": 0,
+    "last_updated": "2025-11-12T19:40:28.809039",
+    "sharpe_ratio": -3.508269299616989,
+    "directional_bias": {
+        "long": {
+            "rolling": [],
+            "net_pnl": 0.0,
+            "trades": 0,
+            "wins": 0,
+            "losses": 0,
+            "consecutive_losses": 0,
+            "consecutive_wins": 0,
+            "caution_active": false,
+            "caution_win_progress": 0,
+            "loss_streak_loss_usd": 0.0
+        },
+        "short": {
+            "rolling": [],
+            "net_pnl": 0.0,
+            "trades": 0,
+            "wins": 0,
+            "losses": 0,
+            "consecutive_losses": 0,
+            "consecutive_wins": 0,
+            "caution_active": false,
+            "caution_win_progress": 0,
+            "loss_streak_loss_usd": 0.0
+        }
+    },
+    "last_history_reset_cycle": 0,
+    "cycles_since_history_reset": 6,
+    "directional_cooldowns": {
+        "long": 0,
+        "short": 0
+    },
+    "relaxed_countertrend_cycles": 0
+}

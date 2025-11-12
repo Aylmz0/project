@@ -1,0 +1,566 @@
+[
+    {
+        "cycle": 1,
+        "timestamp": "2025-11-12T19:19:01.764751",
+        "user_prompt_summary": "\nUSER_PROMPT:\nIt has been 0 minutes since you started trading. The current time is 2025-11-12 19:18:16.667396 and you've been invoked 1 times. Below, we are providing you with a variety of state data, price data, and predictive signals so you can discover alpha. Below that is your current account in...",
+        "chain_of_thoughts": "Analyzing all assets systematically in this bearish market regime. All coins show strong bearish momentum across both 1h and 3m timeframes with price consistently below EMA20. Volume is extremely weak across most assets (0.0x-0.1x average), indicating lack of conviction in current moves. RSI levels are oversold but not extreme (30-33 range), suggesting potential for further downside.\n\nXRP: Price=2.3289 < 1h EMA20=2.3903, 3m momentum bearish, volume 0.054x average. MACD declining on both timeframes. Weak counter-trade setup (2/5 conditions) - avoid longs.\n\nDOGE: Price=0.1678 < 1h EMA20=0.1726, 3m momentum bearish, volume extremely weak at 0.015x average. No volume confirmation for any move.\n\nJASMY: Price=0.0091 < 1h EMA20=0.0094, 3m momentum bearish, zero volume. Completely illiquid - avoid.\n\nADA: Price=0.5433 < 1h EMA20=0.5607, 3m momentum bearish, volume 0.014x average. Strong bearish structure but no volume participation.\n\nLINK: Price=15.0500 < 1h EMA20=15.5275, 3m momentum bearish, volume 0.108x average. Negative funding rate suggests short bias. Most attractive short setup given clearer bearish structure.\n\nSOL: Price=151.9800 < 1h EMA20=156.3857, 3m momentum bearish, volume 0.099x average. Strongest volume ratio among assets but still weak.\n\nGiven the uniform bearish regime and weak volume, I'll wait for stronger confirmation before entering positions. The extremely low volume ratios (\u22640.15x) across most coins indicate unreliable price action. LINK shows the most defined bearish structure with negative funding, but volume remains weak. Better to observe this initial cycle and wait for volume confirmation or clearer setups.",
+        "decisions": {
+            "XRP": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "DOGE": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "JASMY": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "ADA": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "LINK": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "SOL": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            }
+        },
+        "status": "ai_decision",
+        "metadata": {
+            "positions_closed_by_tp_sl": false,
+            "manual_override": false,
+            "execution_report": {
+                "executed": [],
+                "blocked": [],
+                "skipped": [],
+                "holds": [
+                    {
+                        "coin": "XRP",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "DOGE",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "JASMY",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "ADA",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "LINK",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "SOL",
+                        "has_position": false
+                    }
+                ],
+                "notes": [],
+                "timestamp": "2025-11-12T19:19:01.162020"
+            },
+            "performance": {
+                "market_data_ms": 301.52,
+                "ai_ms": 44494.24,
+                "execution_ms": 601.02
+            }
+        }
+    },
+    {
+        "cycle": 2,
+        "timestamp": "2025-11-12T19:22:58.508636",
+        "user_prompt_summary": "\nUSER_PROMPT:\nIt has been 4 minutes since you started trading. The current time is 2025-11-12 19:22:14.705998 and you've been invoked 2 times. Below, we are providing you with a variety of state data, price data, and predictive signals so you can discover alpha. Below that is your current account in...",
+        "chain_of_thoughts": "Analyzing all assets systematically in this strongly bearish market regime (6/6 coins bearish). All coins show consistent bearish momentum across both 1h and 3m timeframes with price below EMA20 on both timeframes. Volume ratios are extremely weak (0.085x-0.45x average), indicating lack of conviction in current moves. RSI levels are oversold (30-35 range) but not extreme enough for reliable counter-trend entries.\n\nXRP: Price=2.3280 < 1h EMA20=2.3902, 3m price declining with weak volume (0.34x). MACD negative on both timeframes. No compelling entry.\nDOGE: Price=0.1678 < 1h EMA20=0.1726, extremely weak volume (0.085x). RSI oversold but no reversal signals.\nJASMY: Price=0.0091 < 1h EMA20=0.0094, volume weak (0.175x). No clear edge.\nADA: Price=0.5433 < 1h EMA20=0.5607, volume weak (0.214x). Bearish momentum intact.\nLINK: Price=15.0300 < 1h EMA20=15.5256, negative funding rate suggests short bias. Volume weak (0.237x).\nSOL: Price=151.7900 < 1h EMA20=156.3676, strongest volume ratio (0.674x) but still bearish structure.\n\nCounter-trade analysis shows weak setups (2/5 conditions) across all coins with high risk ratings. Volume weakness is particularly concerning - no trades should be taken with volume ratios below 0.5x average. Given the uniform bearish regime and lack of volume confirmation, the systematic approach is to remain in cash and wait for clearer opportunities. No positions meet the minimum confidence threshold of 0.4 with current data quality.",
+        "decisions": {
+            "XRP": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "DOGE": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "JASMY": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "ADA": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "LINK": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "SOL": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            }
+        },
+        "status": "ai_decision",
+        "metadata": {
+            "positions_closed_by_tp_sl": false,
+            "manual_override": false,
+            "execution_report": {
+                "executed": [],
+                "blocked": [],
+                "skipped": [],
+                "holds": [
+                    {
+                        "coin": "XRP",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "DOGE",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "JASMY",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "ADA",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "LINK",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "SOL",
+                        "has_position": false
+                    }
+                ],
+                "notes": [],
+                "timestamp": "2025-11-12T19:22:57.899191"
+            },
+            "performance": {
+                "market_data_ms": 290.13,
+                "ai_ms": 43192.79,
+                "execution_ms": 607.06
+            }
+        }
+    },
+    {
+        "cycle": 3,
+        "timestamp": "2025-11-12T19:27:09.634560",
+        "user_prompt_summary": "\nUSER_PROMPT:\nIt has been 8 minutes since you started trading. The current time is 2025-11-12 19:26:14.551184 and you've been invoked 3 times. Below, we are providing you with a variety of state data, price data, and predictive signals so you can discover alpha. Below that is your current account in...",
+        "chain_of_thoughts": "Market analysis reveals a strongly bearish regime across all assets with global bearish strength at 1.0. All coins show price below 1h EMA20 with bearish momentum on both 1h and 3m timeframes. Counter-trade analysis shows weak setups (2/5 conditions met) with low volume participation (0.1x-0.6x average) and RSI levels in the 30-40 range, insufficient for strong counter-trend entries.\n\nXRP: Price=2.3287 < 1h EMA20=2.3903, 3m trend bearish, volume 0.42x average. RSI 34.8 shows oversold but not extreme. MACD negative on both timeframes. Weak counter-trend setup.\n\nDOGE: Price=0.1680 < 1h EMA20=0.1726, volume 0.26x average. RSI 40.0, MACD negative. Very low volume suggests lack of conviction.\n\nJASMY: Price=0.0091 < 1h EMA20=0.0094, volume 0.32x average. RSI 38.9, minimal price movement. No compelling edge.\n\nADA: Price=0.5428 < 1h EMA20=0.5607, extremely low volume at 0.14x average. RSI 31.0 approaching oversold but volume weakness critical. Avoid due to participation concerns.\n\nLINK: Price=15.0300 < 1h EMA20=15.5256, negative funding rate (-0.0092%), volume 0.59x average. RSI 33.8, MACD strongly negative. Most developed bearish structure.\n\nSOL: Price=152.1500 < 1h EMA20=156.4019, volume 0.72x average (highest among assets). RSI 38.3, MACD negative. Best volume participation in bearish context.\n\nGiven the uniform bearish regime with weak counter-trend signals and low volume participation, I'll focus on trend-following short opportunities. LINK and SOL show the strongest bearish structures with reasonable volume. LINK has negative funding supporting shorts, while SOL shows the highest relative volume. I'll initiate short positions on these with conservative targets given the extended bearish move.",
+        "decisions": {
+            "XRP": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "DOGE": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "JASMY": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "ADA": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "LINK": {
+                "signal": "sell_to_enter",
+                "leverage": 10,
+                "confidence": 0.65,
+                "profit_target": 14.7,
+                "stop_loss": 15.4,
+                "risk_usd": 25.0,
+                "invalidation_condition": "If 1h price closes above 1h EMA20=15.5256",
+                "volume_quality_score": 20.0,
+                "volume_ratio_runtime": 0.5944,
+                "trend_runtime": "bearish",
+                "trend_alignment": "trend_following",
+                "runtime_decision": "executed_live"
+            },
+            "SOL": {
+                "signal": "sell_to_enter",
+                "leverage": 10,
+                "confidence": 0.6208,
+                "profit_target": 149.5,
+                "stop_loss": 154.5,
+                "risk_usd": 25.0,
+                "invalidation_condition": "If 1h price closes above 1h EMA20=156.4019",
+                "volume_quality_score": 20.0,
+                "volume_ratio_runtime": 0.4945,
+                "trend_runtime": "bearish",
+                "trend_alignment": "trend_following",
+                "runtime_decision": "executed_live"
+            }
+        },
+        "status": "ai_decision",
+        "metadata": {
+            "positions_closed_by_tp_sl": false,
+            "manual_override": false,
+            "execution_report": {
+                "executed": [
+                    {
+                        "coin": "LINK",
+                        "signal": "sell_to_enter",
+                        "confidence": 0.65,
+                        "classification": "trend_following",
+                        "volume_ratio": 0.594438456315994,
+                        "margin_usd": 0.0,
+                        "mode": "live",
+                        "order_id": 45719093868
+                    },
+                    {
+                        "coin": "SOL",
+                        "signal": "sell_to_enter",
+                        "confidence": 0.6208,
+                        "classification": "trend_following",
+                        "volume_ratio": 0.4945101410051471,
+                        "margin_usd": 0.0,
+                        "mode": "live",
+                        "order_id": 171757853692
+                    }
+                ],
+                "blocked": [],
+                "skipped": [],
+                "holds": [
+                    {
+                        "coin": "XRP",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "DOGE",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "JASMY",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "ADA",
+                        "has_position": false
+                    }
+                ],
+                "notes": [],
+                "timestamp": "2025-11-12T19:27:00.585273"
+            },
+            "performance": {
+                "market_data_ms": 301.09,
+                "ai_ms": 46033.55,
+                "execution_ms": 9046.96
+            }
+        }
+    },
+    {
+        "cycle": 4,
+        "timestamp": "2025-11-12T19:30:47.729633",
+        "user_prompt_summary": "\nUSER_PROMPT:\nIt has been 12 minutes since you started trading. The current time is 2025-11-12 19:30:14.590412 and you've been invoked 4 times. Below, we are providing you with a variety of state data, price data, and predictive signals so you can discover alpha. Below that is your current account i...",
+        "chain_of_thoughts": "Market analysis reveals a strongly bearish regime across all assets with global bearish strength at 1.0. Both 1h and 3m trends remain bearish for all coins, supporting continuation of existing short positions. Counter-trade analysis shows weak setups (2/5 conditions met) with high risk, confirming trend-following remains the optimal strategy.\n\nLINK SHORT: Position performing well with current price at 15.0000 vs entry 15.0260. 1h trend remains bearish (price=15.0000 < EMA20=15.5228), 3m momentum bearish (price=15.0000 < EMA20=15.1105). RSI at 32.3 shows room for further downside. Volume ratio 0.142x is concerning but bearish structure intact. Funding rate negative (-0.0098%) supports short bias. Position should be held with existing exit plan.\n\nSOL SHORT: Slight negative PnL but technicals remain bearish. Current price 152.0400 vs entry 151.9900. 1h trend bearish (price=152.0100 < EMA20=156.3886), 3m momentum bearish (price=152.0400 < EMA20=152.4971). RSI at 37.5 suggests more downside potential. Volume ratio 0.300x is weak but bearish structure holds. Funding rate negative (-0.0075%) supports short continuation.\n\nOther assets show similar bearish structures but weak volume participation (all <0.5x average) makes new entries unattractive. XRP volume 0.105x, DOGE 0.077x, JASMY 0.284x, ADA 0.147x - all insufficient for high-confidence entries. No reversal signals detected across timeframe analysis.\n\nGiven the strong bearish regime alignment and weak counter-trade setups, maintaining existing short positions is optimal. Both LINK and SOL show continued bearish momentum with room to reach profit targets. No new entries justified due to poor volume confirmation across all assets.",
+        "decisions": {
+            "XRP": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "DOGE": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "JASMY": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "ADA": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "LINK": {
+                "signal": "hold",
+                "leverage": 10,
+                "quantity_usd": 0.0,
+                "confidence": 0.0,
+                "profit_target": 14.7,
+                "stop_loss": 15.4,
+                "risk_usd": 0.0,
+                "invalidation_condition": "If 1h price closes above 1h EMA20=15.5256",
+                "entry_price": 15.026,
+                "current_price": 15.02,
+                "unrealized_pnl": 0.0657600000000025,
+                "notional_usd": 164.54922303040001,
+                "direction": "short",
+                "runtime_decision": "hold"
+            },
+            "SOL": {
+                "signal": "hold",
+                "leverage": 10,
+                "quantity_usd": 0.0,
+                "confidence": 0.0,
+                "profit_target": 149.5,
+                "stop_loss": 154.5,
+                "risk_usd": 0.0,
+                "invalidation_condition": "If 1h price closes above 1h EMA20=156.4019",
+                "entry_price": 151.99,
+                "current_price": 152.06,
+                "unrealized_pnl": -0.0902999999999912,
+                "notional_usd": 196.1164594764,
+                "direction": "short",
+                "runtime_decision": "hold"
+            }
+        },
+        "status": "ai_decision",
+        "metadata": {
+            "positions_closed_by_tp_sl": false,
+            "manual_override": false,
+            "execution_report": {
+                "executed": [],
+                "blocked": [],
+                "skipped": [],
+                "holds": [
+                    {
+                        "coin": "XRP",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "DOGE",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "JASMY",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "ADA",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "LINK",
+                        "has_position": true
+                    },
+                    {
+                        "coin": "SOL",
+                        "has_position": true
+                    }
+                ],
+                "notes": [],
+                "timestamp": "2025-11-12T19:30:47.116979"
+            },
+            "performance": {
+                "market_data_ms": 303.24,
+                "ai_ms": 32525.93,
+                "execution_ms": 610.23
+            }
+        }
+    },
+    {
+        "cycle": 5,
+        "timestamp": "2025-11-12T19:35:06.843826",
+        "user_prompt_summary": "\nUSER_PROMPT:\nIt has been 16 minutes since you started trading. The current time is 2025-11-12 19:34:14.546616 and you've been invoked 5 times. Below, we are providing you with a variety of state data, price data, and predictive signals so you can discover alpha. Below that is your current account i...",
+        "chain_of_thoughts": "Market analysis reveals a strongly bearish regime across all assets with global bearish strength at 1.0. All coins show price below 1h EMA20 with bearish momentum on both 1h and 3m timeframes. Counter-trade analysis shows weak setups (2/5 conditions met) with high risk recommendations, suggesting avoiding counter-trend longs.\n\nVolume analysis shows concerning weakness: XRP (0.25x), DOGE (0.39x), ADA (0.44x), LINK (0.53x), SOL (0.59x) - all below average participation. Only JASMY shows decent volume (1.37x) but still in bearish structure.\n\nTechnical indicators support continued bearish momentum: RSI readings are oversold but not extreme (XRP 28.8, DOGE 31.7, ADA 25.1, LINK 29.6, SOL 31.6), MACD remains negative across all assets, and prices consistently below EMAs on both timeframes.\n\nGiven the strong bearish alignment across 1h trends, 3m momentum, and volume weakness, I'll focus on high-quality short setups. LINK and SOL show the strongest bearish momentum with recent trend flips (2 cycles ago) and well-defined technical structures. LINK has negative funding rate (-0.0102%) supporting shorts, while SOL shows consistent downward pressure with price=151.45 < 1h EMA20=156.33.\n\nRisk management: Using 1h ATR for stops, targeting 1:1.5+ risk/reward ratios. Will avoid low-volume coins and focus on assets with clear technical breakdowns.",
+        "decisions": {
+            "XRP": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "DOGE": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "JASMY": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "ADA": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "LINK": {
+                "signal": "sell_to_enter",
+                "leverage": 10,
+                "confidence": 0.7326,
+                "profit_target": 14.65,
+                "stop_loss": 15.25,
+                "risk_usd": 32.0,
+                "invalidation_condition": "If 1h price closes above 1h EMA20=15.52",
+                "volume_quality_score": 20.0,
+                "volume_ratio_runtime": 0.5315,
+                "trend_runtime": "bearish",
+                "trend_alignment": "trend_following",
+                "runtime_decision": "executed_live"
+            },
+            "SOL": {
+                "signal": "sell_to_enter",
+                "leverage": 10,
+                "confidence": 0.6930000000000001,
+                "profit_target": 148.5,
+                "stop_loss": 154.0,
+                "risk_usd": 32.0,
+                "invalidation_condition": "If 1h price closes above 1h EMA20=156.33",
+                "volume_quality_score": 20.0,
+                "volume_ratio_runtime": 0.5874,
+                "trend_runtime": "bearish",
+                "trend_alignment": "trend_following",
+                "runtime_decision": "executed_live"
+            }
+        },
+        "status": "ai_decision",
+        "metadata": {
+            "positions_closed_by_tp_sl": false,
+            "manual_override": false,
+            "execution_report": {
+                "executed": [
+                    {
+                        "coin": "LINK",
+                        "signal": "sell_to_enter",
+                        "confidence": 0.7326,
+                        "classification": "trend_following",
+                        "volume_ratio": 0.5314621865988554,
+                        "margin_usd": 0.0,
+                        "mode": "live",
+                        "order_id": 45719393352
+                    },
+                    {
+                        "coin": "SOL",
+                        "signal": "sell_to_enter",
+                        "confidence": 0.6930000000000001,
+                        "classification": "trend_following",
+                        "volume_ratio": 0.5873925274726626,
+                        "margin_usd": 0.0,
+                        "mode": "live",
+                        "order_id": 171760838310
+                    }
+                ],
+                "blocked": [],
+                "skipped": [],
+                "holds": [
+                    {
+                        "coin": "XRP",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "DOGE",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "JASMY",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "ADA",
+                        "has_position": false
+                    }
+                ],
+                "notes": [],
+                "timestamp": "2025-11-12T19:34:56.555970"
+            },
+            "performance": {
+                "market_data_ms": 291.75,
+                "ai_ms": 42008.68,
+                "execution_ms": 10287.01
+            }
+        }
+    },
+    {
+        "cycle": 6,
+        "timestamp": "2025-11-12T19:38:57.077577",
+        "user_prompt_summary": "\nUSER_PROMPT:\nIt has been 20 minutes since you started trading. The current time is 2025-11-12 19:38:14.578279 and you've been invoked 6 times. Below, we are providing you with a variety of state data, price data, and predictive signals so you can discover alpha. Below that is your current account i...",
+        "chain_of_thoughts": "Market analysis reveals a strongly bearish regime across all assets with all coins showing price below 1h EMA20. Current positions in SOL and LINK are short and align with the prevailing bearish trend. Both positions show minimal unrealized PnL (-$0.38 and -$0.33 respectively) and are well within their risk parameters.\n\nFor SOL: Current price=151.73 < 1h EMA20=156.36, 3m momentum remains bearish with price=151.73 < 3m EMA20=152.30. Volume is strong at 1.91x average, supporting continued downward pressure. RSI at 37.2 shows room for further decline. The counter-trade analysis shows 3/5 conditions met with moderate risk, but trend-following remains the dominant strategy.\n\nFor LINK: Current price=14.98 < 1h EMA20=15.52, 3m momentum bearish with price=14.98 < 3m EMA20=15.08. Volume is weak at 0.275x average, which is concerning, but the bearish structure remains intact. RSI at 33.0 suggests further downside potential.\n\nOther assets show weak counter-trend setups (2/5 conditions) with poor volume participation (0.2x-0.6x average), making them unsuitable for new entries. SOL presents the strongest bearish continuation setup with volume confirmation.\n\nBoth existing positions should be held as the bearish trend remains intact and positions are early in their lifecycle. No new entries are justified given the weak volume across most assets and the already allocated short exposure.",
+        "decisions": {
+            "XRP": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "DOGE": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "JASMY": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "ADA": {
+                "signal": "hold",
+                "runtime_decision": "hold"
+            },
+            "LINK": {
+                "signal": "hold",
+                "leverage": 10,
+                "quantity_usd": 0.0,
+                "confidence": 0.0,
+                "profit_target": 14.65,
+                "stop_loss": 15.25,
+                "risk_usd": 0.0,
+                "invalidation_condition": "If 1h price closes above 1h EMA20=15.52",
+                "entry_price": 14.954,
+                "current_price": 14.98,
+                "unrealized_pnl": -0.3255199999999975,
+                "notional_usd": 187.44719754279998,
+                "direction": "short",
+                "runtime_decision": "hold"
+            },
+            "SOL": {
+                "signal": "hold",
+                "leverage": 10,
+                "quantity_usd": 0.0,
+                "confidence": 0.0,
+                "profit_target": 148.5,
+                "stop_loss": 154.0,
+                "risk_usd": 0.0,
+                "invalidation_condition": "If 1h price closes above 1h EMA20=156.33",
+                "entry_price": 151.44,
+                "current_price": 151.81,
+                "unrealized_pnl": -0.3811000000000047,
+                "notional_usd": 156.3038281541,
+                "direction": "short",
+                "runtime_decision": "hold"
+            }
+        },
+        "status": "ai_decision",
+        "metadata": {
+            "positions_closed_by_tp_sl": false,
+            "manual_override": false,
+            "execution_report": {
+                "executed": [],
+                "blocked": [],
+                "skipped": [],
+                "holds": [
+                    {
+                        "coin": "XRP",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "DOGE",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "JASMY",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "ADA",
+                        "has_position": false
+                    },
+                    {
+                        "coin": "LINK",
+                        "has_position": true
+                    },
+                    {
+                        "coin": "SOL",
+                        "has_position": true
+                    }
+                ],
+                "notes": [],
+                "timestamp": "2025-11-12T19:38:56.475177"
+            },
+            "performance": {
+                "market_data_ms": 290.27,
+                "ai_ms": 41896.26,
+                "execution_ms": 600.01
+            }
+        }
+    }
+]

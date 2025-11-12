@@ -1,0 +1,80 @@
+[
+    {
+        "symbol": "SOL",
+        "direction": "short",
+        "entry_price": 155.12,
+        "exit_price": 154.11,
+        "quantity": 0.55956678700361,
+        "notional_usd": 65.1,
+        "pnl": 0.5651624548736409,
+        "entry_time": "2025-11-12T01:39:20.528301",
+        "exit_time": "2025-11-12T02:32:18.082043",
+        "leverage": 10,
+        "close_reason": "Profit taking at 0.6% gain (25%)"
+    },
+    {
+        "symbol": "SOL",
+        "direction": "short",
+        "entry_price": 155.12,
+        "exit_price": 154.01,
+        "quantity": 0.41967509025270744,
+        "notional_usd": 48.824999999999996,
+        "pnl": 0.465839350180511,
+        "entry_time": "2025-11-12T01:39:20.528301",
+        "exit_time": "2025-11-12T02:33:03.386878",
+        "leverage": 10,
+        "close_reason": "Profit taking at 0.7% gain (25%)"
+    },
+    {
+        "symbol": "SOL",
+        "direction": "short",
+        "entry_price": 155.12,
+        "exit_price": 153.88,
+        "quantity": 1.2590252707581224,
+        "notional_usd": 195.29999999999998,
+        "pnl": 1.5611913357400833,
+        "entry_time": "2025-11-12T01:39:20.528301",
+        "exit_time": "2025-11-12T02:33:07.680308",
+        "leverage": 10,
+        "close_reason": "Position margin $19.53 <= maximum limit $19.96"
+    },
+    {
+        "symbol": "LINK",
+        "direction": "long",
+        "entry_price": 15.39,
+        "exit_price": 15.26,
+        "quantity": 15.816105984,
+        "notional_usd": 243.40987109376002,
+        "pnl": -2.0560937779200126,
+        "entry_time": "2025-11-12T02:26:00.517490",
+        "exit_time": "2025-11-12T02:35:40.341610",
+        "leverage": 10,
+        "close_reason": "Margin-based loss cut $2.06 \u2265 $1.95"
+    },
+    {
+        "symbol": "SOL",
+        "direction": "short",
+        "entry_price": 153.84,
+        "exit_price": 154.31,
+        "quantity": 1.8500582632738136,
+        "notional_usd": 284.6129632220435,
+        "pnl": -0.8695273837386903,
+        "entry_time": "2025-11-12T02:38:09.625394",
+        "exit_time": "2025-11-12T03:17:07.695444",
+        "leverage": 10,
+        "close_reason": "Position negative for 10 cycles"
+    },
+    {
+        "symbol": "ADA",
+        "direction": "short",
+        "entry_price": 0.5569,
+        "exit_price": 0.5599,
+        "quantity": 410.7816666526474,
+        "notional_usd": 228.7643101588593,
+        "pnl": -1.2323449999579432,
+        "entry_time": "2025-11-12T02:42:01.163503",
+        "exit_time": "2025-11-12T03:29:07.694466",
+        "leverage": 10,
+        "close_reason": "Position negative for 10 cycles"
+    }
+]
