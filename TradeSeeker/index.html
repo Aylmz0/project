@@ -79,9 +79,17 @@
         <!-- Header -->
         <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
             <h1 class="text-2xl sm:text-3xl font-bold text-main">DeepSeek Bot Admin Panel</h1>
+            <div class="flex items-center space-x-4">
             <div id="statusIndicator" class="flex items-center space-x-2">
                 <span class="status-dot status-down"></span>
                 <span class="text-sm font-medium text-secondary">DISCONNECTED</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button id="botControlBtn" onclick="toggleBotControl()" class="px-4 py-2 rounded font-medium text-sm transition-colors bg-indigo-600 hover:bg-indigo-700 text-white">
+                        <span id="botControlText">⏸️ PAUSE</span>
+                    </button>
+                    <span id="botStatusText" class="text-xs text-secondary">Checking...</span>
+                </div>
             </div>
         </div>
 
@@ -285,13 +293,13 @@
 
         async function fetchData() {
             try {
-                const stateResponse = await fetch('/api/portfolio?t=' + Date.now());
+                const stateResponse = await fetch(apiUrl('/api/portfolio') + '?t=' + Date.now());
                 if (!stateResponse.ok) throw new Error('portfolio_state.json fetch failed.');
                 const stateData = await stateResponse.json();
                 if (typeof stateData !== 'object' || stateData === null) throw new Error('Invalid state data.');
                 updateDashboard(stateData);
 
-                const tradeHistoryResponse = await fetch('/api/trades?t=' + Date.now());
+                const tradeHistoryResponse = await fetch(apiUrl('/api/trades') + '?t=' + Date.now());
                 let tradeHistoryData = [];
                 if (tradeHistoryResponse.ok) {
                     tradeHistoryData = await tradeHistoryResponse.json();
@@ -302,7 +310,7 @@
                     updateTradeHistory([]);
                 }
 
-                const cycleHistoryResponse = await fetch('/api/cycles?t=' + Date.now());
+                const cycleHistoryResponse = await fetch(apiUrl('/api/cycles') + '?t=' + Date.now());
                 if (cycleHistoryResponse.ok) {
                     const cycleHistoryData = await cycleHistoryResponse.json();
                     if (!Array.isArray(cycleHistoryData)) throw new Error('Invalid cycle history data.');
@@ -314,7 +322,7 @@
 
                 // Fetch alerts
                 try {
-                    const alertsResponse = await fetch('/api/alerts?t=' + Date.now());
+                    const alertsResponse = await fetch(apiUrl('/api/alerts') + '?t=' + Date.now());
                     if (alertsResponse.ok) {
                         const alertsData = await alertsResponse.json();
                         if (Array.isArray(alertsData)) {
@@ -616,7 +624,7 @@
                 return;
             }
             try {
-                const response = await fetch('/force-close', {
+                const response = await fetch(apiUrl('/force-close'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ coin: coin }),
@@ -682,8 +690,19 @@
                 return { winRate: 0, riskLevel: 'Low' };
             }
 
-            const winningTrades = tradeHistory.filter(trade => trade.pnl > 0);
-            const winRate = (winningTrades.length / tradeHistory.length) * 100;
+            // Calculate win rate based on profit/loss amounts (not trade counts)
+            // Win Rate = Total Profit / (|Total Profit| + |Total Loss|) * 100
+            const totalProfit = tradeHistory
+                .filter(trade => trade.pnl > 0)
+                .reduce((sum, trade) => sum + trade.pnl, 0);
+            const totalLoss = Math.abs(tradeHistory
+                .filter(trade => trade.pnl < 0)
+                .reduce((sum, trade) => sum + trade.pnl, 0));
+            
+            let winRate = 0;
+            if (totalProfit + totalLoss > 0) {
+                winRate = (totalProfit / (totalProfit + totalLoss)) * 100;
+            }
             
             // Simple risk level calculation based on recent volatility
             const recentTrades = tradeHistory.slice(-10);
@@ -706,7 +725,7 @@
                 btn.textContent = '🔄 Analyzing...';
                 btn.disabled = true;
                 
-                const response = await fetch('/api/performance/refresh', {
+                const response = await fetch(apiUrl('/api/performance/refresh'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 });
@@ -734,7 +753,7 @@
 
         async function loadPerformanceData() {
             try {
-                const response = await fetch('/api/performance?t=' + Date.now());
+                const response = await fetch(apiUrl('/api/performance') + '?t=' + Date.now());
                 if (response.ok) {
                     const performanceData = await response.json();
                     updatePerformanceDashboard(performanceData);
@@ -956,11 +975,170 @@
             }
         }
 
+        // --- Bot Control Functions ---
+        let botControlInterval;
+        
+        async function checkBotStatus() {
+            try {
+                const response = await fetch(apiUrl('/api/bot-control') + '?t=' + Date.now());
+                if (response.ok) {
+                    const control = await response.json();
+                    updateBotControlUI(control.status || 'unknown');
+                }
+            } catch (error) {
+                console.error('Error checking bot status:', error);
+                updateBotControlUI('unknown');
+            }
+        }
+        
+        function updateBotControlUI(status) {
+            const btn = document.getElementById('botControlBtn');
+            const btnText = document.getElementById('botControlText');
+            const statusText = document.getElementById('botStatusText');
+            
+            if (status === 'running') {
+                btn.className = 'px-4 py-2 rounded font-medium text-sm transition-colors bg-yellow-600 hover:bg-yellow-700 text-white';
+                btnText.textContent = '⏸️ PAUSE';
+                statusText.textContent = 'Running';
+                statusText.className = 'text-xs text-positive';
+            } else if (status === 'paused') {
+                btn.className = 'px-4 py-2 rounded font-medium text-sm transition-colors bg-green-600 hover:bg-green-700 text-white';
+                btnText.textContent = '▶️ RESUME';
+                statusText.textContent = 'Paused';
+                statusText.className = 'text-xs text-yellow-500';
+            } else if (status === 'stopped') {
+                btn.className = 'px-4 py-2 rounded font-medium text-sm transition-colors bg-green-600 hover:bg-green-700 text-white';
+                btnText.textContent = '▶️ START';
+                statusText.textContent = 'Stopped';
+                statusText.className = 'text-xs text-negative';
+            } else {
+                btn.className = 'px-4 py-2 rounded font-medium text-sm transition-colors bg-gray-600 hover:bg-gray-700 text-white';
+                btnText.textContent = '❓ UNKNOWN';
+                statusText.textContent = 'Unknown';
+                statusText.className = 'text-xs text-secondary';
+            }
+        }
+        
+        async function toggleBotControl() {
+            const btn = document.getElementById('botControlBtn');
+            const btnText = document.getElementById('botControlText');
+            const originalText = btnText.textContent;
+            
+            try {
+                btn.disabled = true;
+                btnText.textContent = '⏳ Processing...';
+                
+                // Determine action based on current status
+                const statusResponse = await fetch(apiUrl('/api/bot-control') + '?t=' + Date.now());
+                let currentStatus = 'unknown';
+                if (statusResponse.ok) {
+                    const control = await statusResponse.json();
+                    currentStatus = control.status || 'unknown';
+                }
+                
+                let action;
+                if (currentStatus === 'running') {
+                    action = 'pause';
+                } else if (currentStatus === 'paused' || currentStatus === 'stopped') {
+                    action = 'resume';
+                } else {
+                    action = 'resume'; // Default to resume if unknown
+                }
+                
+                const response = await fetch(apiUrl('/api/bot-control'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: action })
+                });
+                
+                // Read response body once
+                const responseText = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (e) {
+                    // If not JSON, use text as error message
+                    throw new Error(responseText || `HTTP ${response.status}: Failed to send bot control command`);
+                }
+                
+                if (!response.ok) {
+                    throw new Error(result.message || `HTTP ${response.status}: Failed to send bot control command`);
+                }
+                
+                if (result.status === 'success') {
+                    updateBotControlUI(result.bot_status);
+                    alert(`✅ Bot ${action} command sent successfully!`);
+                } else {
+                    throw new Error(result.message || 'Unknown error');
+                }
+            } catch (error) {
+                console.error('Bot control error:', error);
+                alert(`❌ Failed to control bot: ${error.message}`);
+                btnText.textContent = originalText;
+            } finally {
+                btn.disabled = false;
+                // Refresh status after a short delay
+                setTimeout(checkBotStatus, 1000);
+            }
+        }
+
+        // --- Proxy-aware Base URL Helper ---
+        // Detects if running behind a proxy (like CodeServer) and adjusts base URL
+        function getBaseURL() {
+            const path = window.location.pathname;
+            
+            // CodeServer proxy pattern: /proxy/port/ or /proxy/port
+            // Example: /proxy/8002/ or /proxy/8002
+            const codeServerMatch = path.match(/^(\/proxy\/\d+\/?)/);
+            if (codeServerMatch) {
+                let proxyPath = codeServerMatch[1];
+                // Ensure trailing slash
+                if (!proxyPath.endsWith('/')) {
+                    proxyPath += '/';
+                }
+                console.log('🔍 CodeServer proxy detected:', proxyPath);
+                return proxyPath;
+            }
+            
+            // Generic proxy pattern: /proxy/...
+            if (path.startsWith('/proxy/')) {
+                // Find the end of proxy path (usually ends with / or before next /)
+                const parts = path.split('/');
+                if (parts.length >= 3) {
+                    // /proxy/port/ format
+                    const proxyPath = '/' + parts[1] + '/' + parts[2] + '/';
+                    console.log('🔍 Generic proxy detected:', proxyPath);
+                    return proxyPath;
+                }
+            }
+            
+            // No proxy detected, use root
+            console.log('🔍 No proxy detected, using root path');
+            return '';
+        }
+        
+        const API_BASE = getBaseURL();
+        
+        // Helper function to build API URLs
+        function apiUrl(path) {
+            // Remove leading slash if present to avoid double slashes
+            const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+            return `${API_BASE}${cleanPath}`;
+        }
+
         // --- Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
+            // Log detected base URL for debugging
+            console.log('🌐 Detected base URL:', API_BASE || '(root)');
+            console.log('🌐 Full API base:', window.location.origin + API_BASE);
+            
             fetchData();
+            checkBotStatus(); // Check bot status on load
             if (fetchInterval) clearInterval(fetchInterval);
             fetchInterval = setInterval(fetchData, FETCH_INTERVAL_MS);
+            // Check bot status every 5 seconds
+            if (botControlInterval) clearInterval(botControlInterval);
+            botControlInterval = setInterval(checkBotStatus, 5000);
         });
 
     </script>

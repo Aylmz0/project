@@ -207,37 +207,40 @@ class PerformanceMonitor:
     
     def _generate_recommendations(self, win_rate: float, profit_factor: float, 
                                 coin_performance: Dict, open_positions: int) -> List[str]:
-        """Generate honest performance-based recommendations in English"""
+        """Generate performance-based recommendations"""
         recommendations = []
         
-        # Get current portfolio data for dynamic values
-        portfolio = safe_file_read(self.portfolio_state_file, {})
-        current_balance = portfolio.get('current_balance', 0.0)
-        initial_balance = portfolio.get('initial_balance', 200.0)
-        total_return = portfolio.get('total_return', 0.0)
+        # Win rate recommendations
+        if win_rate < 30:
+            recommendations.append("⚠️ Low win rate (<30%). Consider reviewing trading strategy and risk management.")
+        elif win_rate > 60:
+            recommendations.append("✅ Excellent win rate (>60%). Current strategy is working well.")
         
-        # Dynamic cash balance warning
-        if current_balance < initial_balance * 0.5:
-            recommendations.append(f"⚠️ Low cash balance (${current_balance:.2f}/{initial_balance}) - be selective")
+        # Profit factor recommendations
+        if profit_factor < 1.0:
+            recommendations.append("⚠️ Profit factor < 1.0. Total losses exceed total profits. Review risk management.")
+        elif profit_factor > 2.0:
+            recommendations.append("✅ Strong profit factor (>2.0). Trading strategy is profitable.")
         
-        # 3 positions threshold (more conservative)
-        if open_positions >= 3:
-            recommendations.append(f"📊 High position count ({open_positions}) - quality over quantity")
+        # Coin performance recommendations
+        profitable_coins = [coin for coin, stats in coin_performance.items() 
+                          if stats.get('total_pnl', 0) > 0]
+        unprofitable_coins = [coin for coin, stats in coin_performance.items() 
+                            if stats.get('total_pnl', 0) < 0]
         
-        # Performance feedback
-        if total_return < 5:
-            recommendations.append(f"📈 Low return ({total_return:.2f}%) - seek better setups")
+        if profitable_coins:
+            recommendations.append(f"✅ Focus on profitable coins: {', '.join(profitable_coins)}")
         
-        # Coin performance - simple and clear
-        if coin_performance:
-            unprofitable_coins = [coin for coin, stats in coin_performance.items() 
-                                if stats.get('total_pnl', 0) < 0]
-            if unprofitable_coins:
-                recommendations.append(f"⚠️ Review strategy for: {', '.join(unprofitable_coins)}")
+        if unprofitable_coins:
+            recommendations.append(f"⚠️ Review strategy for: {', '.join(unprofitable_coins)}")
         
-        # General recommendation if no specific issues
+        # Position management
+        if open_positions >= 4:
+            recommendations.append("⚠️ High position count. Consider reducing exposure in bearish markets.")
+        
+        # General recommendations
         if not recommendations:
-            recommendations.append("📊 Performance stable - continue current approach")
+            recommendations.append("📊 Performance is stable. Continue current strategy with regular monitoring.")
         
         return recommendations
     

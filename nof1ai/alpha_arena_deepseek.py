@@ -751,11 +751,6 @@ class PortfolioManager:
     # --- NEW: Enhanced Auto TP/SL Check with Advanced Exit Strategies ---
     def check_and_execute_tp_sl(self, current_prices: Dict[str, float]):
         """Checks if any open position hit TP or SL and closes them automatically with enhanced exit strategies."""
-        # Enhanced exit strategy control - check if enabled
-        if hasattr(self, 'bot') and not self.bot.enhanced_exit_enabled:
-            print("⏸️ Enhanced exit strategy paused during cycle")
-            return False
-            
         print("🔎 Checking for TP/SL triggers with enhanced exit strategies...")
         closed_positions = [] # Keep track of positions closed in this check
         updated_stops = [] # Track positions with updated trailing stops
@@ -782,17 +777,17 @@ class PortfolioManager:
             try: sl = float(sl) if sl is not None else None
             except (ValueError, TypeError): sl = None
 
-            # Enhanced exit strategy check - REAL-TIME ENTEGRASYON
+            # Enhanced exit strategy check
             exit_decision = self.enhanced_exit_strategy(position, current_price)
             
-            # Handle enhanced exit strategy signals - ANINDA İŞLEME
+            # Handle enhanced exit strategy signals
             if exit_decision['action'] == 'close_position':
                 # Enhanced exit strategy wants to close the position completely
                 close_reason = exit_decision['reason']
                 print(f"⚡ ENHANCED EXIT CLOSE {coin} ({direction}): {close_reason} at price ${format_num(current_price, 4)}")
                 
             elif exit_decision['action'] == 'partial_close':
-                # Partial profit taking - ANINDA İŞLEME
+                # Partial profit taking
                 close_percent = exit_decision['percent']
                 close_quantity = quantity * close_percent
                 
@@ -820,7 +815,7 @@ class PortfolioManager:
                 continue  # Continue with remaining position
             
             elif exit_decision['action'] == 'update_stop':
-                # Update trailing stop - ANINDA GÜNCELLEME
+                # Update trailing stop
                 updated_stops.append(coin)
                 print(f"📈 TRAILING STOP UPDATE {coin}: New stop at ${format_num(exit_decision['new_stop'], 4)}")
                 continue
@@ -908,9 +903,9 @@ class PortfolioManager:
         if notional_usd < 150:
             # Small positions: aggressive profit taking
             return {
-                'level1': 0.007,  # %0.7
+                'level1': 0.006,  # %0.6
                 'level2': 0.009,  # %0.9
-                'level3': 0.011,  # %1.1
+                'level3': 0.012,  # %1.2
                 'take1': 0.25,    # %25 profit al
                 'take2': 0.50,    # %50 profit al
                 'take3': 0.75     # %75 profit al
@@ -918,9 +913,9 @@ class PortfolioManager:
         elif notional_usd < 300:
             # Medium positions: balanced profit taking
             return {
-                'level1': 0.007,  # %0.7
+                'level1': 0.006,  # %0.6
                 'level2': 0.009,  # %0.9
-                'level3': 0.011,  # %1.1
+                'level3': 0.012,  # %1.2
                 'take1': 0.25,    # %25 profit al
                 'take2': 0.50,    # %50 profit al
                 'take3': 0.75     # %75 profit al
@@ -928,29 +923,9 @@ class PortfolioManager:
         elif notional_usd < 400:
             # Large positions: conservative profit taking
             return {
-                'level1': 0.006,  # %0.6
+                'level1': 0.005,  # %0.5
                 'level2': 0.008,  # %0.8
                 'level3': 0.010,  # %1.0
-                'take1': 0.25,    # %25 profit al
-                'take2': 0.50,    # %50 profit al
-                'take3': 0.75     # %75 profit al
-            }
-        elif notional_usd < 500:
-            # xLarge positions: conservative profit taking
-            return {
-                'level1': 0.005,  # %0.5
-                'level2': 0.007,  # %0.7
-                'level3': 0.009,  # %0.9
-                'take1': 0.25,    # %25 profit al
-                'take2': 0.50,    # %50 profit al
-                'take3': 0.75     # %75 profit al
-            }
-        elif notional_usd < 600:
-            # xxLarge positions: conservative profit taking
-            return {
-                'level1': 0.004,  # %0.
-                'level2': 0.006,  # %0.6
-                'level3': 0.008,  # %0.8
                 'take1': 0.25,    # %25 profit al
                 'take2': 0.50,    # %50 profit al
                 'take3': 0.75     # %75 profit al
@@ -958,9 +933,9 @@ class PortfolioManager:
         else:
             # Very large positions: very conservative profit taking
             return {
-                'level1': 0.003,  # %0.3
-                'level2': 0.005,  # %0.5
-                'level3': 0.007,  # %0.7
+                'level1': 0.004,  # %0.4
+                'level2': 0.006,  # %0.6
+                'level3': 0.008,  # %0.8
                 'take1': 0.25,    # %25 profit al
                 'take2': 0.50,    # %50 profit al
                 'take3': 0.75     # %75 profit al
@@ -985,17 +960,17 @@ class PortfolioManager:
             print(f"🛑 Position at maximum limit: ${current_margin:.2f} <= ${max_limit:.2f}. Closing position.")
             return {"action": "close_position", "reason": f"Position at maximum limit (${max_limit:.2f})"}
         
-        # --- LOSS CUTTING MECHANISM (1.0% loss) - SIKIŞTIRILMIŞ ---
+        # --- LOSS CUTTING MECHANISM (1.0% loss) ---
         if direction == 'long':
             unrealized_pnl_percent = (current_price - entry_price) / entry_price
-            # Check for 1.0% loss - SIKIŞTIRILMIŞ
-            if unrealized_pnl_percent <= -0.01:  # 1.0% loss (sıkıştırılmış)
+            # Check for 1.0% loss
+            if unrealized_pnl_percent <= -0.01:  # 1.0% loss
                 print(f"🛑 LOSS CUTTING: {direction} {position['symbol']} at {unrealized_pnl_percent*100:.1f}% loss. Closing position.")
                 return {"action": "close_position", "reason": f"Loss cutting at 1.0% loss ({unrealized_pnl_percent*100:.1f}%)"}
         elif direction == 'short':
             unrealized_pnl_percent = (entry_price - current_price) / entry_price
-            # Check for 1.0% loss - SIKIŞTIRILMIŞ
-            if unrealized_pnl_percent <= -0.01:  # 1.0% loss (sıkıştırılmış)
+            # Check for 1.0% loss
+            if unrealized_pnl_percent <= -0.01:  # 1.0% loss
                 print(f"🛑 LOSS CUTTING: {direction} {position['symbol']} at {unrealized_pnl_percent*100:.1f}% loss. Closing position.")
                 return {"action": "close_position", "reason": f"Loss cutting at 1.0% loss ({unrealized_pnl_percent*100:.1f}%)"}
         
@@ -1652,7 +1627,6 @@ class AlphaArenaDeepSeek:
         self.invocation_count = 0 # Track AI calls since bot start
         self.tp_sl_timer = None
         self.is_running = False
-        self.enhanced_exit_enabled = True  # Enhanced exit strategy control flag
 
     def get_max_positions_for_cycle(self, cycle_number: int) -> int:
         """Cycle bazlı maximum pozisyon limiti - Kademeli artış sistemi"""
@@ -2485,10 +2459,6 @@ Current live positions & performance:"""
         print(f"\n{'='*80}\n🔄 TRADING CYCLE {cycle_number} | ⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n{'='*80}")
         prompt, thoughts, decisions = "N/A", "N/A", {}
         try:
-            # Enhanced exit strategy control - pause during cycle
-            print("⏸️ Enhanced exit strategy paused during cycle")
-            self.enhanced_exit_enabled = False
-            
             # Track performance metrics every cycle
             self.track_performance_metrics(cycle_number)
             
@@ -2616,11 +2586,6 @@ Current live positions & performance:"""
             self.portfolio.save_state()
             # Log regardless of errors (log contains error info if applicable)
             self.portfolio.add_to_cycle_history(cycle_number, prompt, thoughts, decisions)
-            
-            # Enhanced exit strategy control - re-enable after cycle completion
-            print("▶️ Enhanced exit strategy re-enabled after cycle completion")
-            self.enhanced_exit_enabled = True
-            
             self.show_status()
 
         except Exception as e:
@@ -2668,20 +2633,10 @@ Current live positions & performance:"""
             print("ℹ️ TP/SL monitoring was not running")
 
     def _tp_sl_monitoring_loop(self):
-        """Background thread that checks TP/SL every 45 seconds"""
-        print("🔄 TP/SL monitoring loop started (45 second interval)")
+        """Background thread that checks TP/SL every 1 minute"""
+        print("🔄 TP/SL monitoring loop started")
         while self.is_running:
             try:
-                # Enhanced exit strategy control - check if enabled
-                if not self.enhanced_exit_enabled:
-                    print("⏸️ Enhanced exit strategy paused during cycle - TP/SL monitoring waiting")
-                    # Wait 10 seconds and check again
-                    for _ in range(10):
-                        if not self.is_running:
-                            break
-                        time.sleep(1)
-                    continue
-                
                 # Get current prices
                 real_prices = self.market_data.get_all_real_prices()
                 valid_prices = {k: v for k, v in real_prices.items() if isinstance(v, (int, float)) and v > 0}
@@ -2690,21 +2645,21 @@ Current live positions & performance:"""
                     # Update portfolio prices
                     self.portfolio.update_prices(valid_prices)
                     
-                    # Check and execute TP/SL with enhanced exit strategy
+                    # Check and execute TP/SL
                     positions_closed = self.portfolio.check_and_execute_tp_sl(valid_prices)
                     
                     if positions_closed:
-                        print(f"⏰ 45-SECOND TP/SL CHECK: Positions closed")
+                        print(f"⏰ 1-MINUTE TP/SL CHECK: Positions closed")
                     else:
-                        print(f"⏰ 45-SECOND TP/SL CHECK: No triggers")
+                        print(f"⏰ 1-MINUTE TP/SL CHECK: No triggers")
                 else:
                     print("⚠️ TP/SL monitoring: No valid prices available")
                 
             except Exception as e:
                 print(f"❌ TP/SL monitoring error: {e}")
             
-            # Wait 45 seconds before next check
-            for _ in range(45):
+            # Wait 1 minute before next check
+            for _ in range(60):
                 if not self.is_running:
                     break
                 time.sleep(1)
