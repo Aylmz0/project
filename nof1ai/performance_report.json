@@ -1,63 +1,85 @@
 {
-  "analysis_period": "Last 6 cycles (Total: 6)",
-  "timestamp": "2025-11-07T03:11:30.860901",
+  "analysis_period": "Last 10 cycles (Total: 50)",
+  "timestamp": "2025-11-07T18:47:24.269381",
   "trading_activity": {
-    "total_decisions": 36,
-    "entry_signals": 8,
-    "hold_signals": 25,
-    "close_signals": 3,
-    "decision_rate": 22.22222222222222
+    "total_decisions": 54,
+    "entry_signals": 9,
+    "hold_signals": 44,
+    "close_signals": 1,
+    "decision_rate": 16.666666666666664
   },
   "trade_performance": {
-    "total_trades": 8,
-    "winning_trades": 8,
-    "losing_trades": 0,
+    "total_trades": 100,
+    "winning_trades": 91,
+    "losing_trades": 9,
     "break_even_trades": 0,
-    "win_rate": 100.0,
-    "total_pnl": 3.29,
-    "average_pnl": 0.41,
-    "profit_factor": Infinity,
-    "largest_win": 0.7,
-    "largest_loss": 0.23
+    "win_rate": 91.0,
+    "total_pnl": 62.06,
+    "average_pnl": 0.62,
+    "profit_factor": 3.74,
+    "largest_win": 2.7,
+    "largest_loss": -8.41
   },
   "portfolio_performance": {
     "initial_balance": 200.0,
-    "current_balance": 103.56574834128105,
-    "total_value": 208.5868831261401,
-    "total_return": 4.29,
-    "sharpe_ratio": 7.463,
-    "open_positions": 4
+    "current_balance": 81.59969759114524,
+    "total_value": 254.5206553786161,
+    "total_return": 27.26,
+    "sharpe_ratio": 3.099,
+    "open_positions": 6
   },
   "coin_performance": {
-    "DOGE": {
-      "trades": 3,
-      "total_pnl": 1.472521373170685,
-      "wins": 3,
-      "losses": 0,
-      "win_rate": 100.0,
-      "avg_pnl": 0.49084045772356166
-    },
     "XRP": {
-      "trades": 2,
-      "total_pnl": 0.763407597381617,
-      "wins": 2,
-      "losses": 0,
-      "win_rate": 100.0,
-      "avg_pnl": 0.3817037986908085
+      "trades": 22,
+      "total_pnl": 14.286640961204709,
+      "wins": 20,
+      "losses": 2,
+      "win_rate": 90.9090909090909,
+      "avg_pnl": 0.6493927709638504
+    },
+    "LINK": {
+      "trades": 18,
+      "total_pnl": 12.744033533154614,
+      "wins": 17,
+      "losses": 1,
+      "win_rate": 94.44444444444444,
+      "avg_pnl": 0.7080018629530341
+    },
+    "SOL": {
+      "trades": 7,
+      "total_pnl": 3.0288313625300556,
+      "wins": 5,
+      "losses": 2,
+      "win_rate": 71.42857142857143,
+      "avg_pnl": 0.4326901946471508
+    },
+    "JASMY": {
+      "trades": 25,
+      "total_pnl": 6.146851854765287,
+      "wins": 22,
+      "losses": 3,
+      "win_rate": 88.0,
+      "avg_pnl": 0.24587407419061147
+    },
+    "DOGE": {
+      "trades": 15,
+      "total_pnl": 11.439691387825622,
+      "wins": 14,
+      "losses": 1,
+      "win_rate": 93.33333333333333,
+      "avg_pnl": 0.7626460925217081
     },
     "ADA": {
-      "trades": 3,
-      "total_pnl": 1.0513225719812493,
-      "wins": 3,
+      "trades": 13,
+      "total_pnl": 14.418169385657933,
+      "wins": 13,
       "losses": 0,
       "win_rate": 100.0,
-      "avg_pnl": 0.35044085732708313
+      "avg_pnl": 1.1090899527429179
     }
   },
   "recommendations": [
-    "✅ Excellent win rate (>60%). Current strategy is working well.",
-    "✅ Strong profit factor (>2.0). Trading strategy is profitable.",
-    "✅ Focus on profitable coins: DOGE, XRP, ADA",
-    "⚠️ High position count. Consider reducing exposure in bearish markets."
+    "⚠️ Low cash balance ($81.60/200.0) - be selective",
+    "📊 High position count (6) - quality over quantity"
   ]
 }

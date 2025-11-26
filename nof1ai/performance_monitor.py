@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any
 import pandas as pd
 import numpy as np
+import requests
 
 def safe_file_read(file_path: str, default_data=None):
     """Safely read JSON file with error handling - handles empty files gracefully"""
@@ -207,40 +208,37 @@ class PerformanceMonitor:
     
     def _generate_recommendations(self, win_rate: float, profit_factor: float, 
                                 coin_performance: Dict, open_positions: int) -> List[str]:
-        """Generate performance-based recommendations"""
+        """Generate honest performance-based recommendations in English"""
         recommendations = []
         
-        # Win rate recommendations
-        if win_rate < 30:
-            recommendations.append("⚠️ Low win rate (<30%). Consider reviewing trading strategy and risk management.")
-        elif win_rate > 60:
-            recommendations.append("✅ Excellent win rate (>60%). Current strategy is working well.")
+        # Get current portfolio data for dynamic values
+        portfolio = safe_file_read(self.portfolio_state_file, {})
+        current_balance = portfolio.get('current_balance', 0.0)
+        initial_balance = portfolio.get('initial_balance', 200.0)
+        total_return = portfolio.get('total_return', 0.0)
         
-        # Profit factor recommendations
-        if profit_factor < 1.0:
-            recommendations.append("⚠️ Profit factor < 1.0. Total losses exceed total profits. Review risk management.")
-        elif profit_factor > 2.0:
-            recommendations.append("✅ Strong profit factor (>2.0). Trading strategy is profitable.")
+        # Dynamic cash balance warning
+        if current_balance < initial_balance * 0.5:
+            recommendations.append(f"⚠️ Low cash balance (${current_balance:.2f}/{initial_balance}) - be selective")
         
-        # Coin performance recommendations
-        profitable_coins = [coin for coin, stats in coin_performance.items() 
-                          if stats.get('total_pnl', 0) > 0]
-        unprofitable_coins = [coin for coin, stats in coin_performance.items() 
-                            if stats.get('total_pnl', 0) < 0]
+        # 3 positions threshold (more conservative)
+        if open_positions >= 3:
+            recommendations.append(f"📊 High position count ({open_positions}) - quality over quantity")
         
-        if profitable_coins:
-            recommendations.append(f"✅ Focus on profitable coins: {', '.join(profitable_coins)}")
+        # Performance feedback
+        if total_return < 5:
+            recommendations.append(f"📈 Low return ({total_return:.2f}%) - seek better setups")
         
-        if unprofitable_coins:
-            recommendations.append(f"⚠️ Review strategy for: {', '.join(unprofitable_coins)}")
+        # Coin performance - simple and clear
+        if coin_performance:
+            unprofitable_coins = [coin for coin, stats in coin_performance.items() 
+                                if stats.get('total_pnl', 0) < 0]
+            if unprofitable_coins:
+                recommendations.append(f"⚠️ Review strategy for: {', '.join(unprofitable_coins)}")
         
-        # Position management
-        if open_positions >= 4:
-            recommendations.append("⚠️ High position count. Consider reducing exposure in bearish markets.")
-        
-        # General recommendations
+        # General recommendation if no specific issues
         if not recommendations:
-            recommendations.append("📊 Performance is stable. Continue current strategy with regular monitoring.")
+            recommendations.append("📊 Performance stable - continue current approach")
         
         return recommendations
     
@@ -383,6 +381,226 @@ class PerformanceMonitor:
             suggestions.append("Poor risk management - focus on position sizing and stop-loss discipline")
         
         return suggestions
+
+    def detect_trend_reversal_signals(self, coin: str) -> Dict[str, Any]:
+        """Detect trend reversal signals for a specific coin (Information Only - Decision Remains With AI)"""
+        try:
+            # Import market data functions
+            from alpha_arena_deepseek import RealMarketData
+            market_data = RealMarketData()
+            
+            # Get indicators for both timeframes
+            indicators_3m = market_data.get_technical_indicators(coin, '3m')
+            indicators_4h = market_data.get_technical_indicators(coin, '4h')
+            
+            if 'error' in indicators_3m or 'error' in indicators_4h:
+                return {
+                    "coin": coin,
+                    "reversal_detected": False,
+                    "signal_strength": "NO_DATA",
+                    "details": "Unable to fetch indicator data",
+                    "recommendation": "No trend reversal analysis available"
+                }
+            
+            # Extract key indicators
+            price_4h = indicators_4h.get('current_price')
+            ema20_4h = indicators_4h.get('ema_20')
+            price_3m = indicators_3m.get('current_price')
+            ema20_3m = indicators_3m.get('ema_20')
+            rsi_3m = indicators_3m.get('rsi_14', 50)
+            rsi_4h = indicators_4h.get('rsi_14', 50)
+            volume_3m = indicators_3m.get('volume', 0)
+            avg_volume_3m = indicators_3m.get('avg_volume', 1)
+            macd_3m = indicators_3m.get('macd', 0)
+            macd_signal_3m = indicators_3m.get('macd_signal', 0)
+            macd_4h = indicators_4h.get('macd', 0)
+            macd_signal_4h = indicators_4h.get('macd_signal', 0)
+            
+            # Determine current trend direction
+            trend_4h = "BULLISH" if price_4h > ema20_4h else "BEARISH"
+            trend_3m = "BULLISH" if price_3m > ema20_3m else "BEARISH"
+            
+            # Trend reversal detection criteria
+            reversal_signals = 0
+            total_signals = 4
+            signal_details = []
+            
+            # 1. Multi-timeframe EMA kırılma analizi
+            if trend_4h != trend_3m:
+                reversal_signals += 1
+                signal_details.append(f"Multi-timeframe EMA divergence: 4h {trend_4h} vs 3m {trend_3m}")
+            
+            # 2. RSI momentum shift detection
+            rsi_shift_3m = "BULLISH" if rsi_3m > 50 else "BEARISH"
+            rsi_shift_4h = "BULLISH" if rsi_4h > 50 else "BEARISH"
+            
+            if rsi_shift_3m != trend_3m or rsi_shift_4h != trend_4h:
+                reversal_signals += 1
+                signal_details.append(f"RSI momentum shift: 4h RSI {rsi_4h:.1f} ({rsi_shift_4h}), 3m RSI {rsi_3m:.1f} ({rsi_shift_3m})")
+            
+            # 3. Volume-price divergence
+            volume_ratio = volume_3m / avg_volume_3m if avg_volume_3m > 0 else 0
+            volume_divergence = False
+            
+            if trend_3m == "BULLISH" and volume_ratio < 0.8:
+                volume_divergence = True
+                signal_details.append(f"Volume divergence: Bullish trend but low volume ({volume_ratio:.1f}x)")
+            elif trend_3m == "BEARISH" and volume_ratio < 0.8:
+                volume_divergence = True
+                signal_details.append(f"Volume divergence: Bearish trend but low volume ({volume_ratio:.1f}x)")
+            
+            if volume_divergence:
+                reversal_signals += 1
+            
+            # 4. MACD signal line crossover
+            macd_divergence_3m = (macd_3m > macd_signal_3m and trend_3m == "BEARISH") or (macd_3m < macd_signal_3m and trend_3m == "BULLISH")
+            macd_divergence_4h = (macd_4h > macd_signal_4h and trend_4h == "BEARISH") or (macd_4h < macd_signal_4h and trend_4h == "BULLISH")
+            
+            if macd_divergence_3m or macd_divergence_4h:
+                reversal_signals += 1
+                signal_details.append("MACD signal line divergence detected")
+            
+            # Determine signal strength
+            if reversal_signals >= 3:
+                signal_strength = "HIGH_LOSS_RISK"
+                recommendation = f"🔻 HIGH LOSS RISK: Trend break detected for {coin} - Consider closing position"
+            elif reversal_signals >= 2:
+                signal_strength = "MEDIUM_LOSS_RISK"
+                recommendation = f"⚠️ MEDIUM LOSS RISK: Trend weakening for {coin} - Monitor closely"
+            elif reversal_signals >= 1:
+                signal_strength = "LOW_LOSS_RISK"
+                recommendation = f"📊 LOW LOSS RISK: Minor trend divergence for {coin}"
+            else:
+                signal_strength = "NO_LOSS_RISK"
+                recommendation = f"✅ NO LOSS RISK: Trend intact for {coin}"
+            
+            return {
+                "coin": coin,
+                "reversal_detected": reversal_signals > 0,
+                "signal_strength": signal_strength,
+                "signals_detected": reversal_signals,
+                "total_signals": total_signals,
+                "current_trend_4h": trend_4h,
+                "current_trend_3m": trend_3m,
+                "signal_details": signal_details,
+                "recommendation": recommendation,
+                "note": "INFORMATION ONLY - Final decision remains with AI"
+            }
+            
+        except Exception as e:
+            print(f"⚠️ Trend reversal detection error for {coin}: {e}")
+            return {
+                "coin": coin,
+                "reversal_detected": False,
+                "signal_strength": "ERROR",
+                "details": f"Detection error: {str(e)}",
+                "recommendation": "Unable to analyze trend reversal"
+            }
+
+    def detect_trend_reversal_for_all_coins(self, coins: List[str]) -> Dict[str, Any]:
+        """Detect trend break signals for all specified coins (Loss Risk Information Only)"""
+        try:
+            reversal_results = {}
+            high_risk_coins = []
+            medium_risk_coins = []
+            low_risk_coins = []
+            no_risk_coins = []
+            
+            print(f"🔍 Analyzing trend break signals for {len(coins)} coins...")
+            
+            for coin in coins:
+                reversal_result = self.detect_trend_reversal_signals(coin)
+                reversal_results[coin] = reversal_result
+                
+                # Categorize coins by signal strength
+                signal_strength = reversal_result.get('signal_strength', 'NO_LOSS_RISK')
+                if signal_strength == "HIGH_LOSS_RISK":
+                    high_risk_coins.append(coin)
+                elif signal_strength == "MEDIUM_LOSS_RISK":
+                    medium_risk_coins.append(coin)
+                elif signal_strength == "LOW_LOSS_RISK":
+                    low_risk_coins.append(coin)
+                else:
+                    no_risk_coins.append(coin)
+            
+            # Generate summary
+            total_coins = len(coins)
+            coins_with_risk = len(high_risk_coins) + len(medium_risk_coins) + len(low_risk_coins)
+            
+            summary = {
+                "total_coins_analyzed": total_coins,
+                "coins_with_loss_risk": coins_with_risk,
+                "high_loss_risk_coins": high_risk_coins,
+                "medium_loss_risk_coins": medium_risk_coins,
+                "low_loss_risk_coins": low_risk_coins,
+                "no_loss_risk_coins": no_risk_coins,
+                "loss_risk_percentage": (coins_with_risk / total_coins * 100) if total_coins > 0 else 0,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            # Generate recommendations based on loss risk patterns
+            recommendations = self._generate_reversal_recommendations(summary, reversal_results)
+            summary["recommendations"] = recommendations
+            
+            # Create loss risk signals for AI prompt format
+            loss_risk_signals = {}
+            for coin, result in reversal_results.items():
+                signals = []
+                if result.get('reversal_detected', False):
+                    signals.append({
+                        'type': 'LOSS_RISK',
+                        'strength': result.get('signal_strength', 'UNKNOWN'),
+                        'description': f"{coin}: {result.get('recommendation', 'No description')}"
+                    })
+                loss_risk_signals[coin] = {
+                    'loss_risk_signals': signals,
+                    'current_trend_4h': result.get('current_trend_4h', 'UNKNOWN'),
+                    'current_trend_3m': result.get('current_trend_3m', 'UNKNOWN'),
+                    'signal_strength': result.get('signal_strength', 'NO_LOSS_RISK')
+                }
+            
+            return loss_risk_signals
+            
+        except Exception as e:
+            print(f"❌ Error in trend break analysis for all coins: {e}")
+            return {
+                "error": f"Trend break analysis failed: {str(e)}"
+            }
+
+    def _generate_reversal_recommendations(self, summary: Dict, reversal_results: Dict) -> List[str]:
+        """Generate recommendations based on trend reversal analysis"""
+        recommendations = []
+        
+        strong_count = len(summary.get('strong_reversal_coins', []))
+        moderate_count = len(summary.get('moderate_reversal_coins', []))
+        weak_count = len(summary.get('weak_reversal_coins', []))
+        reversal_percentage = summary.get('reversal_percentage', 0)
+        
+        # Market-wide reversal signals
+        if strong_count >= 3:
+            recommendations.append("⚠️ Multiple strong reversal signals detected - Consider defensive positioning")
+        elif strong_count >= 2:
+            recommendations.append("⚠️ Several strong reversal signals - Monitor market conditions closely")
+        
+        if reversal_percentage > 50:
+            recommendations.append("📊 High reversal signal percentage (>50%) - Market may be changing direction")
+        elif reversal_percentage > 30:
+            recommendations.append("📊 Moderate reversal signal percentage (>30%) - Be cautious with new positions")
+        
+        # Specific coin recommendations
+        strong_coins = summary.get('strong_reversal_coins', [])
+        if strong_coins:
+            recommendations.append(f"⚠️ Strong reversals in: {', '.join(strong_coins)} - Review positions")
+        
+        # Risk management recommendations
+        if strong_count > 0:
+            recommendations.append("🎯 Consider tightening stop-losses on positions with reversal signals")
+        
+        # General market sentiment
+        if strong_count == 0 and moderate_count == 0:
+            recommendations.append("✅ No significant reversal signals - Current trends appear intact")
+        
+        return recommendations
 
 # Main function for standalone usage
 def main():
